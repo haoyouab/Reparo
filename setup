@@ -1,35 +1,94 @@
 #!/bin/bash
 
+# Color definitions
 RED=`tput setaf 1`
 GREEN=`tput setaf 2`
+YELLOW=`tput setaf 3`
+BLUE=`tput setaf 4`
 RST=`tput sgr0`
 
-setup()
-{
-	local dist=$1
-	echo -e "${GREEN}$PRETTY_NAME detected${RST}"
-	export DIST_ROOT=./dist/$dist
-	source $DIST_ROOT/setup.sh
+# Trap Ctrl-C to exit the entire script
+trap 'echo -e "\n${RED}Setup interrupted by user. Exiting...${RST}"; exit 1' INT
+
+# Logging functions
+log_info() {
+    echo -e "${BLUE}[INFO]${RST} $1"
 }
 
-unrecg_distro()
-{
-	echo -e "${RED}error: Unrecognized Distribution${RST}"
+log_success() {
+    echo -e "${GREEN}[SUCCESS]${RST} $1"
 }
 
-RELEASE_FILE=/etc/os-release
+log_warning() {
+    echo -e "${YELLOW}[WARNING]${RST} $1"
+}
 
-if [ -f "$RELEASE_FILE" ]; then
-	DIST=$(grep NAME $RELEASE_FILE -w | sed -n 's/NAME=//p' | tr -d '"')
-	PRETTY_NAME=$(grep PRETTY_NAME $RELEASE_FILE -w | sed -n 's/PRETTY_NAME=//p' | tr -d '"')
-fi
+log_error() {
+    echo -e "${RED}[ERROR]${RST} $1"
+}
 
-case "$DIST" in
-	Fedora|Ubuntu)
-		setup $DIST
-		;;
-	*)
-		unrecg_distro
-		exit 1
-		;;
-esac
+# Function to setup for detected distribution
+setup_distribution() {
+    local dist=$1
+    log_success "$PRETTY_NAME detected"
+    log_info "Setting up environment for $dist..."
+
+    export DIST_ROOT=./dist/$dist
+
+    if [ -f "$DIST_ROOT/setup.sh" ]; then
+        log_info "Executing $dist setup script..."
+        source $DIST_ROOT/setup.sh
+        if [ $? -eq 0 ]; then
+            log_success "$dist setup completed successfully"
+        else
+            log_error "$dist setup failed"
+            return 1
+        fi
+    else
+        log_error "Setup script not found for $dist: $DIST_ROOT/setup.sh"
+        return 1
+    fi
+}
+
+# Function to handle unrecognized distribution
+handle_unrecognized_distro() {
+    log_error "Unrecognized Distribution: $DIST"
+    log_info "Supported distributions: Fedora, Ubuntu"
+    log_info "Please ensure you're using a supported Linux distribution"
+}
+
+# Main setup function
+main() {
+    echo -e "${GREEN}Linux Environment Setup Script${RST}"
+    echo -e "${GREEN}================================${RST}"
+
+    local RELEASE_FILE=/etc/os-release
+    local DIST=""
+    local PRETTY_NAME=""
+
+    if [ -f "$RELEASE_FILE" ]; then
+        DIST=$(grep '^NAME=' $RELEASE_FILE | sed -n 's/NAME=//p' | tr -d '"')
+        PRETTY_NAME=$(grep '^PRETTY_NAME=' $RELEASE_FILE | sed -n 's/PRETTY_NAME=//p' | tr -d '"')
+    else
+        log_error "Cannot find /etc/os-release file"
+        log_error "This script requires a Linux distribution with systemd"
+        exit 1
+    fi
+
+    case "$DIST" in
+        *Fedora*)
+            setup_distribution "Fedora" || exit 1
+            ;;
+        *Ubuntu*)
+            setup_distribution "Ubuntu" || exit 1
+            ;;
+        *)
+            handle_unrecognized_distro
+            exit 1
+            ;;
+    esac
+
+    echo -e "${GREEN}\nSetup completed successfully!${RST}"
+}
+
+main
