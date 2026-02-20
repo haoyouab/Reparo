@@ -62,6 +62,16 @@ main() {
     echo -e "${GREEN}Linux Environment Setup Script${RST}"
     echo -e "${GREEN}================================${RST}"
 
+    # Collect forwarding args (only forward recognized flags like --neovim)
+    local FORWARD_ARGS=()
+    for _a in "$@"; do
+        case "$_a" in
+            --neovim)
+                FORWARD_ARGS+=("$_a")
+                ;;
+        esac
+    done
+
     local RELEASE_FILE=/etc/os-release
     local DIST=""
     local PRETTY_NAME=""
@@ -77,10 +87,35 @@ main() {
 
     case "$DIST" in
         *Fedora*)
-            setup_distribution "Fedora" || exit 1
+            # Execute the distro setup script and forward recognized args
+            export DIST_ROOT=./dist/Fedora
+            if [ -f "$DIST_ROOT/setup.sh" ]; then
+                log_info "Executing Fedora setup script..."
+                if bash "$DIST_ROOT/setup.sh" "${FORWARD_ARGS[@]}"; then
+                    log_success "Fedora setup completed successfully"
+                else
+                    log_error "Fedora setup failed"
+                    exit 1
+                fi
+            else
+                log_error "Setup script not found for Fedora: $DIST_ROOT/setup.sh"
+                exit 1
+            fi
             ;;
         *Ubuntu*)
-            setup_distribution "Ubuntu" || exit 1
+            export DIST_ROOT=./dist/Ubuntu
+            if [ -f "$DIST_ROOT/setup.sh" ]; then
+                log_info "Executing Ubuntu setup script..."
+                if bash "$DIST_ROOT/setup.sh" "${FORWARD_ARGS[@]}"; then
+                    log_success "Ubuntu setup completed successfully"
+                else
+                    log_error "Ubuntu setup failed"
+                    exit 1
+                fi
+            else
+                log_error "Setup script not found for Ubuntu: $DIST_ROOT/setup.sh"
+                exit 1
+            fi
             ;;
         *)
             handle_unrecognized_distro

@@ -194,6 +194,13 @@ setup_gdb() {
 
 # Main setup function
 main() {
+	# If called with --neovim, only run the Neovim setup
+	if [ "$1" = "--neovim" ]; then
+		echo -e "${GREEN}\nRunning Neovim setup only...${RST}"
+		setup_neovim || exit 1
+		echo -e "${GREEN}\nNeovim setup completed.${RST}"
+		return 0
+	fi
 	echo -e "${GREEN}\nSetting up Fedora...\n${RST}"
 
 	echo -e "\033[1mVIM\033[0m"
@@ -219,4 +226,4 @@ main() {
 	echo -e "${GREEN}\nAll setups completed successfully!${RST}"
 }
 
-main
+main "$@"

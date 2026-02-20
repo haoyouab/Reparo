@@ -202,6 +202,13 @@ setup_gdb() {
 
 # Main setup function
 main() {
+	# If called with --neovim, only run the Neovim setup
+	if [ "$1" = "--neovim" ]; then
+		echo -e "${GREEN}\nRunning Neovim setup only...${RST}"
+		setup_neovim || exit 1
+		echo -e "${GREEN}\nNeovim setup completed.${RST}"
+		return 0
+	fi
 	log_info "Updating package list..."
 	if sudo apt update; then
 		log_success "Package list updated"
@@ -235,4 +242,4 @@ main() {
 	echo -e "${GREEN}\nAll setups completed successfully!${RST}"
 }
 
-main
+main "$@"
