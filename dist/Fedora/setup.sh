@@ -98,33 +98,25 @@ setup_neovim() {
 	popd
 	rm "$filename"
 
-	# Build and install tree-sitter from source
-	log_info "Building tree-sitter from source..."
-	local tree_sitter_dir="/tmp/tree-sitter"
-	rm -rf "$tree_sitter_dir"
-	git clone https://github.com/tree-sitter/tree-sitter.git "$tree_sitter_dir" || {
-		log_error "Failed to clone tree-sitter repository"
-		return 1
-	}
-	pushd "$tree_sitter_dir"
+	# Install tree-sitter via cargo
+	log_info "Installing tree-sitter via cargo..."
 	# Install Rust toolchain if not present
 	if ! command -v cargo &>/dev/null; then
 		log_info "Installing Rust toolchain..."
 		curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 		source "$HOME/.cargo/env"
 	fi
-	cargo build --release || {
-		log_error "Failed to build tree-sitter"
-		popd
+	# Ensure Rust is up to date
+	log_info "Updating Rust to latest version..."
+	rustup update || {
+		log_error "Failed to update Rust"
 		return 1
 	}
-	sudo cp target/release/tree-sitter /usr/local/bin/tree-sitter || {
+	# Install tree-sitter
+	cargo install --locked tree-sitter-cli || {
 		log_error "Failed to install tree-sitter"
-		popd
 		return 1
 	}
-	popd
-	rm -rf "$tree_sitter_dir"
 	log_success "tree-sitter installed to /usr/local/bin/tree-sitter"
 
 	# Create symlink for tree-sitter in mason bin directory
