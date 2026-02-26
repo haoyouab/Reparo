@@ -97,6 +97,40 @@ setup_neovim() {
 	ln -sf "$clangd_path/$extracted_dir/bin/clangd" "$HOME/.local/share/nvim/mason/bin/clangd"
 	popd
 	rm "$filename"
+
+	# Build and install tree-sitter from source
+	log_info "Building tree-sitter from source..."
+	local tree_sitter_dir="/tmp/tree-sitter"
+	rm -rf "$tree_sitter_dir"
+	git clone https://github.com/tree-sitter/tree-sitter.git "$tree_sitter_dir" || {
+		log_error "Failed to clone tree-sitter repository"
+		return 1
+	}
+	pushd "$tree_sitter_dir"
+	# Install Rust toolchain if not present
+	if ! command -v cargo &>/dev/null; then
+		log_info "Installing Rust toolchain..."
+		curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+		source "$HOME/.cargo/env"
+	fi
+	cargo build --release || {
+		log_error "Failed to build tree-sitter"
+		popd
+		return 1
+	}
+	sudo cp target/release/tree-sitter /usr/local/bin/tree-sitter || {
+		log_error "Failed to install tree-sitter"
+		popd
+		return 1
+	}
+	popd
+	rm -rf "$tree_sitter_dir"
+	log_success "tree-sitter installed to /usr/local/bin/tree-sitter"
+
+	# Create symlink for tree-sitter in mason bin directory
+	mkdir -p "$HOME/.local/share/nvim/mason/bin"
+	ln -sf /usr/local/bin/tree-sitter "$HOME/.local/share/nvim/mason/bin/tree-sitter"
+	log_success "tree-sitter symlink created at $HOME/.local/share/nvim/mason/bin/tree-sitter"
 }
 
 # Setup Tmux
