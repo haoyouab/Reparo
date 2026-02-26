@@ -12,3 +12,5 @@ alias mutt='mutt'
 
 PYTHON_VERSION=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
 export PYTHONPATH="$PYTHONPATH:$HOME/.local/lib/python$PYTHON_VERSION/site-packages"
+export RUSTUP_UPDATE_ROOT=https://mirrors.tuna.tsinghua.edu.cn/rustup/rustup
+export RUSTUP_DIST_SERVER=https://mirrors.tuna.tsinghua.edu.cn/rustup

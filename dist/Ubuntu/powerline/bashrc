@@ -9,3 +9,6 @@ fi
 alias tmux='tmux -2'
 alias ta='tmux attach || tmux'
 alias mutt='mutt'
+
+export RUSTUP_UPDATE_ROOT=https://mirrors.tuna.tsinghua.edu.cn/rustup/rustup
+export RUSTUP_DIST_SERVER=https://mirrors.tuna.tsinghua.edu.cn/rustup
