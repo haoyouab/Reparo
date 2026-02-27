@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash
 
 # Color definitions
 RED=$(tput setaf 1)
@@ -92,6 +92,7 @@ setup_neovim() {
 	copy_config "$filename" "$clangd_path"
 	mkdir -p "$HOME/.local/share/nvim/mason/bin"
 	pushd "$clangd_path"
+	sudo dnf install -y unzip
 	unzip -o "$filename"
 	local extracted_dir=$(ls -d */ | head -1 | tr -d '/')
 	ln -sf "$clangd_path/$extracted_dir/bin/clangd" "$HOME/.local/share/nvim/mason/bin/clangd"
@@ -100,6 +101,8 @@ setup_neovim() {
 
 	# Install tree-sitter via cargo
 	log_info "Installing tree-sitter via cargo..."
+	export RUSTUP_UPDATE_ROOT=https://mirrors.tuna.tsinghua.edu.cn/rustup/rustup
+	export RUSTUP_DIST_SERVER=https://mirrors.tuna.tsinghua.edu.cn/rustup
 	# Install Rust toolchain if not present
 	if ! command -v cargo &>/dev/null; then
 		log_info "Installing Rust toolchain..."
