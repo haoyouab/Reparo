@@ -130,7 +130,7 @@ setup_neovim() {
 		return 1
 	}
 	# Install tree-sitter
-	cargo install --locked tree-sitter-cli || {
+	cargo install --locked tree-sitter-cli --version 0.25.10 || {
 		log_error "Failed to install tree-sitter"
 		return 1
 	}
