@@ -1,0 +1,25 @@
+FROM fedora:latest
+
+# ─── Install sudo and basic tools for tput ────────────────────────────────────
+RUN dnf install -y sudo ncurses bash && dnf clean all
+
+# ─── Create test user with passwordless sudo ──────────────────────────────────
+RUN useradd -m testuser \
+	&& echo 'testuser ALL=(ALL) NOPASSWD:ALL' >>/etc/sudoers
+
+# ─── Copy repo into container ─────────────────────────────────────────────────
+COPY --chown=testuser:testuser . /home/testuser/Reparo
+
+# ─── Switch to test user ──────────────────────────────────────────────────────
+USER testuser
+WORKDIR /home/testuser/Reparo
+
+# Ensure .bashrc exists (powerline appends to it)
+RUN touch /home/testuser/.bashrc
+
+# ─── Run setup + verification ─────────────────────────────────────────────────
+# Pass SKIP_NEOVIM=true to skip slow neovim step (Rust/cargo compilation)
+CMD ["bash", "-c", "\
+  args=''; \
+  [ \"${SKIP_NEOVIM:-false}\" = 'true' ] && args='--skip-neovim'; \
+  bash setup $args && bash tests/verify-setup.sh"]

@@ -1,0 +1,46 @@
+name: Integration Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      skip_neovim:
+        description: "Skip Neovim setup (faster, skips Rust/cargo)"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+  push:
+    branches: [main, master]
+
+jobs:
+  integration-fedora:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Fedora test image
+        run: docker build -f tests/Dockerfile.fedora -t reparo-test-fedora .
+
+      - name: Run Fedora setup + verification
+        run: >
+          docker run --rm
+          -e SKIP_NEOVIM=${{ github.event.inputs.skip_neovim || 'false' }}
+          reparo-test-fedora
+
+  integration-ubuntu:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Ubuntu test image
+        run: docker build -f tests/Dockerfile.ubuntu -t reparo-test-ubuntu .
+
+      - name: Run Ubuntu setup + verification
+        run: >
+          docker run --rm
+          -e SKIP_NEOVIM=${{ github.event.inputs.skip_neovim || 'false' }}
+          reparo-test-ubuntu

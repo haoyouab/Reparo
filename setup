@@ -1,129 +1,141 @@
 #!/bin/bash
 
-# Color definitions
-RED=`tput setaf 1`
-GREEN=`tput setaf 2`
-YELLOW=`tput setaf 3`
-BLUE=`tput setaf 4`
-RST=`tput sgr0`
+# ─── Resolve project root (absolute path) ────────────────────────────────────
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# ─── Color & Style Definitions (safe for non-TTY) ────────────────────────────
+RED=$(tput setaf 1 2>/dev/null || true)
+GREEN=$(tput setaf 2 2>/dev/null || true)
+YELLOW=$(tput setaf 3 2>/dev/null || true)
+BLUE=$(tput setaf 4 2>/dev/null || true)
+BOLD=$(tput bold 2>/dev/null || true)
+RST=$(tput sgr0 2>/dev/null || true)
 
 # Trap Ctrl-C to exit the entire script
-trap 'echo -e "\n${RED}Setup interrupted by user. Exiting...${RST}"; exit 1' INT
+trap 'echo -e "\n${RED}❌ Setup interrupted by user. Exiting...${RST}"; exit 1' INT
 
-# Logging functions
-log_info() {
-    echo -e "${BLUE}[INFO]${RST} $1"
+# ─── Logging Functions ────────────────────────────────────────────────────────
+log_info() { echo -e "  ${BLUE}ℹ️  ${RST}$1"; }
+log_success() { echo -e "  ${GREEN}✅ ${RST}$1"; }
+log_warning() { echo -e "  ${YELLOW}⚠️  ${RST}$1"; }
+log_error() { echo -e "  ${RED}❌ ${RST}$1"; }
+
+# ─── Fatal: print error banner and abort ──────────────────────────────────────
+die() {
+	echo ""
+	echo -e "${RED}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓${RST}"
+	echo -e "${RED}┃${RST}  ❌  ${BOLD}SETUP FAILED${RST}"
+	echo -e "${RED}┃${RST}     $1"
+	echo -e "${RED}┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${RST}"
+	exit 1
 }
 
-log_success() {
-    echo -e "${GREEN}[SUCCESS]${RST} $1"
-}
-
-log_warning() {
-    echo -e "${YELLOW}[WARNING]${RST} $1"
-}
-
-log_error() {
-    echo -e "${RED}[ERROR]${RST} $1"
-}
-
-# Function to setup for detected distribution
-setup_distribution() {
-    local dist=$1
-    log_success "$PRETTY_NAME detected"
-    log_info "Setting up environment for $dist..."
-
-    export DIST_ROOT=./dist/$dist
-
-    if [ -f "$DIST_ROOT/setup.sh" ]; then
-        log_info "Executing $dist setup script..."
-        source $DIST_ROOT/setup.sh
-        if [ $? -eq 0 ]; then
-            log_success "$dist setup completed successfully"
-        else
-            log_error "$dist setup failed"
-            return 1
-        fi
-    else
-        log_error "Setup script not found for $dist: $DIST_ROOT/setup.sh"
-        return 1
-    fi
-}
-
-# Function to handle unrecognized distribution
-handle_unrecognized_distro() {
-    log_error "Unrecognized Distribution: $DIST"
-    log_info "Supported distributions: Fedora, Ubuntu"
-    log_info "Please ensure you're using a supported Linux distribution"
-}
-
-# Main setup function
+# ─── Main ─────────────────────────────────────────────────────────────────────
 main() {
-    echo -e "${GREEN}Linux Environment Setup Script${RST}"
-    echo -e "${GREEN}================================${RST}"
+	echo ""
+	echo -e "${GREEN}${BOLD}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓${RST}"
+	echo -e "${GREEN}${BOLD}┃${RST}  🐧  ${BOLD}Linux Environment Setup Script${RST}"
+	echo -e "${GREEN}${BOLD}┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${RST}"
 
-    # Collect forwarding args (only forward recognized flags like --neovim)
-    local FORWARD_ARGS=()
-    for _a in "$@"; do
-        case "$_a" in
-            --neovim)
-                FORWARD_ARGS+=("$_a")
-                ;;
-        esac
-    done
+	# Collect forwarding args (only forward recognized flags)
+	local FORWARD_ARGS=()
+	local DOCKER_MODE=false
+	local DOCKER_ARGS=()
+	for _a in "$@"; do
+		case "$_a" in
+			--help | -h)
+				echo ""
+				echo "Usage: bash setup [OPTIONS]"
+				echo ""
+				echo "Options:"
+				echo "  --neovim                  Only setup Neovim (clangd + tree-sitter)"
+				echo "  --skip-neovim             Setup everything except Neovim"
+				echo "  --docker                  Build a Docker dev environment instead of local setup"
+				echo "  --fedora                  Docker: use Fedora base image (default)"
+				echo "  --ubuntu                  Docker: use Ubuntu base image"
+				echo "  --help, -h                Show this help message"
+				echo ""
+				echo "Examples:"
+				echo "  bash setup                              # Full local setup"
+				echo "  bash setup --neovim                     # Neovim only"
+				echo "  bash setup --skip-neovim                # Skip Neovim (faster)"
+				echo "  bash setup --docker                     # Docker dev env (Fedora)"
+				echo "  bash setup --docker --ubuntu            # Docker dev env (Ubuntu)"
+				echo "  bash setup --docker --skip-neovim       # Docker, skip Neovim"
+				return 0
+				;;
+			--docker)
+				DOCKER_MODE=true
+				;;
+			--fedora | --ubuntu)
+				DOCKER_ARGS+=("$_a")
+				;;
+			--github-token=*)
+				DOCKER_ARGS+=("$_a")
+				;;
+			--neovim | --skip-neovim)
+				FORWARD_ARGS+=("$_a")
+				DOCKER_ARGS+=("$_a")
+				;;
+		esac
+	done
 
-    local RELEASE_FILE=/etc/os-release
-    local DIST=""
-    local PRETTY_NAME=""
+	# ─── Docker mode: delegate to docker/build.sh ────────────────────────
+	if [ "$DOCKER_MODE" = true ]; then
+		if [ ! -f "$PROJECT_ROOT/docker/build.sh" ]; then
+			die "Docker build script not found: $PROJECT_ROOT/docker/build.sh"
+		fi
+		bash "$PROJECT_ROOT/docker/build.sh" "${DOCKER_ARGS[@]+"${DOCKER_ARGS[@]}"}"
+		return $?
+	fi
 
-    if [ -f "$RELEASE_FILE" ]; then
-        DIST=$(grep '^NAME=' $RELEASE_FILE | sed -n 's/NAME=//p' | tr -d '"')
-        PRETTY_NAME=$(grep '^PRETTY_NAME=' $RELEASE_FILE | sed -n 's/PRETTY_NAME=//p' | tr -d '"')
-    else
-        log_error "Cannot find /etc/os-release file"
-        log_error "This script requires a Linux distribution with systemd"
-        exit 1
-    fi
+	local RELEASE_FILE=/etc/os-release
+	local DIST=""
+	local PRETTY_NAME=""
 
-    case "$DIST" in
-        *Fedora*)
-            # Execute the distro setup script and forward recognized args
-            export DIST_ROOT=./dist/Fedora
-            if [ -f "$DIST_ROOT/setup.sh" ]; then
-                log_info "Executing Fedora setup script..."
-                if bash "$DIST_ROOT/setup.sh" "${FORWARD_ARGS[@]}"; then
-                    log_success "Fedora setup completed successfully"
-                else
-                    log_error "Fedora setup failed"
-                    exit 1
-                fi
-            else
-                log_error "Setup script not found for Fedora: $DIST_ROOT/setup.sh"
-                exit 1
-            fi
-            ;;
-        *Ubuntu*)
-            export DIST_ROOT=./dist/Ubuntu
-            if [ -f "$DIST_ROOT/setup.sh" ]; then
-                log_info "Executing Ubuntu setup script..."
-                if bash "$DIST_ROOT/setup.sh" "${FORWARD_ARGS[@]}"; then
-                    log_success "Ubuntu setup completed successfully"
-                else
-                    log_error "Ubuntu setup failed"
-                    exit 1
-                fi
-            else
-                log_error "Setup script not found for Ubuntu: $DIST_ROOT/setup.sh"
-                exit 1
-            fi
-            ;;
-        *)
-            handle_unrecognized_distro
-            exit 1
-            ;;
-    esac
+	if [ -f "$RELEASE_FILE" ]; then
+		DIST=$(grep '^NAME=' $RELEASE_FILE | sed -n 's/NAME=//p' | tr -d '"')
+		PRETTY_NAME=$(grep '^PRETTY_NAME=' $RELEASE_FILE | sed -n 's/PRETTY_NAME=//p' | tr -d '"')
+	else
+		die "Cannot find /etc/os-release — this script requires a Linux distribution with systemd."
+	fi
 
-    echo -e "${GREEN}\nSetup completed successfully!${RST}"
+	log_success "Detected: ${BOLD}${PRETTY_NAME}${RST}"
+
+	case "$DIST" in
+		*Fedora*)
+			export DIST_ROOT="$PROJECT_ROOT/dist/Fedora"
+			if [ ! -f "$DIST_ROOT/setup.sh" ]; then
+				die "Setup script not found: $DIST_ROOT/setup.sh"
+			fi
+			log_info "Launching Fedora setup..."
+			if bash "$DIST_ROOT/setup.sh" "${FORWARD_ARGS[@]}"; then
+				log_success "Fedora setup completed successfully"
+			else
+				die "Fedora setup failed — check the output above for details."
+			fi
+			;;
+		*Ubuntu*)
+			export DIST_ROOT="$PROJECT_ROOT/dist/Ubuntu"
+			if [ ! -f "$DIST_ROOT/setup.sh" ]; then
+				die "Setup script not found: $DIST_ROOT/setup.sh"
+			fi
+			log_info "Launching Ubuntu setup..."
+			if bash "$DIST_ROOT/setup.sh" "${FORWARD_ARGS[@]}"; then
+				log_success "Ubuntu setup completed successfully"
+			else
+				die "Ubuntu setup failed — check the output above for details."
+			fi
+			;;
+		*)
+			die "Unrecognized distribution: ${BOLD}${DIST}${RST}\n${RED}┃${RST}     Supported distributions: Fedora, Ubuntu."
+			;;
+	esac
+
+	echo ""
+	echo -e "${GREEN}${BOLD}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓${RST}"
+	echo -e "${GREEN}${BOLD}┃${RST}  🎉  ${BOLD}All done! Setup completed successfully.${RST}"
+	echo -e "${GREEN}${BOLD}┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${RST}"
 }
 
-main
+main "$@"

@@ -1,154 +1,77 @@
 #!/bin/bash
 
-# Color definitions
-RED=$(tput setaf 1)
-GREEN=$(tput setaf 2)
-YELLOW=$(tput setaf 3)
-BLUE=$(tput setaf 4)
-RST=$(tput sgr0)
+# ─── Source common functions ──────────────────────────────────────────────────
+# shellcheck source-path=SCRIPTDIR source=../common.sh
+source "$(dirname "$DIST_ROOT")/common.sh"
 
-# Get the directory of the script
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# Trap Ctrl-C to exit the entire script
-trap 'echo -e "\n${RED}Setup interrupted by user. Exiting...${RST}"; exit 1' INT
-
-# Logging functions
-log_info() {
-	echo -e "${BLUE}[INFO]${RST} $1"
-}
-
-log_success() {
-	echo -e "${GREEN}[SUCCESS]${RST} $1"
-}
-
-log_warning() {
-	echo -e "${YELLOW}[WARNING]${RST} $1"
-}
-
-log_error() {
-	echo -e "${RED}[ERROR]${RST} $1"
-}
-
-# Function to install package
+# ─── Helper: install package (Fedora/dnf) ────────────────────────────────────
 install_package() {
 	local package=$1
-	log_info "Installing $package..."
-	if sudo dnf install $package -y; then
+	log_info "Installing ${BOLD}${package}${RST}..."
+	if sudo dnf install "$package" -y; then
 		log_success "$package installed successfully"
 	else
-		log_error "Failed to install $package"
+		log_error "Failed to install $package — check your network connection or package name."
 		return 1
 	fi
 }
 
-# Function to copy config files
-copy_config() {
-	local src=$1
-	local dest=$2
-	log_info "Copying $src to $dest..."
-	if cp -r "$src" "$dest" >/dev/null 2>&1; then
-		log_success "Configuration copied to $dest"
-	else
-		log_error "Failed to copy configuration to $dest"
-		return 1
-	fi
-}
-
-# Setup Vim
+# ─── Setup: Vim ───────────────────────────────────────────────────────────────
 setup_vim() {
 	log_info "Setting up Vim..."
 	install_package vim || return 1
-	copy_config "$DIST_ROOT/vim/vim" $HOME/.vim || return 1
-	copy_config "$DIST_ROOT/vim/vimrc" $HOME/.vimrc || return 1
+	copy_config "$DIST_ROOT/vim/vim" "$HOME/.vim" || return 1
+	copy_config "$DIST_ROOT/vim/vimrc" "$HOME/.vimrc" || return 1
 	log_success "Vim setup completed"
 }
 
-# Setup Neovim
+# ─── Setup: Neovim ────────────────────────────────────────────────────────────
 setup_neovim() {
 	local nvim_config_path="$HOME/.config"
-	local nvim_package_path="$HOME/.local/share"
-	local clangd_path="$HOME/.local/share/nvim/mason/packages/clangd"
 
-	sudo dnf install -y neovim git
-	mkdir -p $nvim_config_path
-	mkdir -p $clangd_path
-	# copy_config "$DIST_ROOT/nvim" $HOME/.config || return 1
-	rm -rf $HOME/.config/nvim/
-	git clone https://github.com/haoyouab/nvim.git $HOME/.config/nvim || return 1
-
-	# Download clangd from GitHub latest release
-	log_info "Downloading clangd from GitHub latest release..."
-	local api_url="https://api.github.com/repos/clangd/clangd/releases/latest"
-	local download_url=$(curl -s $api_url | grep "browser_download_url.*clangd-linux.*\.zip" | head -1 | cut -d '"' -f 4)
-	if [ -z "$download_url" ]; then
-		log_error "Failed to find clangd download URL"
-		return 1
-	fi
-	local filename=$(basename "$download_url")
-	curl -L $download_url -o "$filename"
-	log_success "clangd downloaded as $filename"
-
-	copy_config "$filename" "$clangd_path"
-	mkdir -p "$HOME/.local/share/nvim/mason/bin"
-	pushd "$clangd_path"
-	sudo dnf install -y unzip
-	unzip -o "$filename"
-	local extracted_dir=$(ls -d */ | head -1 | tr -d '/')
-	ln -sf "$clangd_path/$extracted_dir/bin/clangd" "$HOME/.local/share/nvim/mason/bin/clangd"
-	popd
-	rm "$filename"
-
-	# Install tree-sitter via cargo
-	log_info "Installing tree-sitter via cargo..."
-	export RUSTUP_UPDATE_ROOT=https://mirrors.tuna.tsinghua.edu.cn/rustup/rustup
-	export RUSTUP_DIST_SERVER=https://mirrors.tuna.tsinghua.edu.cn/rustup
-	# Install Rust toolchain if not present
-	if ! command -v cargo &>/dev/null; then
-		log_info "Installing Rust toolchain..."
-		curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-		source "$HOME/.cargo/env"
-	fi
-	# Ensure Rust is up to date
-	log_info "Updating Rust to latest version..."
-	rustup update || {
-		log_error "Failed to update Rust"
+	log_info "Installing neovim, git, jq, and unzip..."
+	sudo dnf install -y neovim git jq unzip || {
+		log_error "Failed to install neovim/git/jq/unzip packages."
 		return 1
 	}
-	# Install tree-sitter
-	cargo install --locked tree-sitter-cli --version 0.25.10 || {
-		log_error "Failed to install tree-sitter"
+
+	mkdir -p "$nvim_config_path" || {
+		log_error "Failed to create $nvim_config_path"
 		return 1
 	}
-	log_success "tree-sitter installed to /usr/local/bin/tree-sitter"
 
-	# Create symlink for tree-sitter in mason bin directory
-	mkdir -p "$HOME/.local/share/nvim/mason/bin"
-	ln -sf /usr/local/bin/tree-sitter "$HOME/.local/share/nvim/mason/bin/tree-sitter"
-	log_success "tree-sitter symlink created at $HOME/.local/share/nvim/mason/bin/tree-sitter"
+	rm -rf "$HOME/.config/nvim/"
+	log_info "Cloning Neovim config from GitHub..."
+	git clone --depth 1 https://github.com/haoyouab/nvim.git "$HOME/.config/nvim" || {
+		log_error "Failed to clone Neovim config repository."
+		return 1
+	}
+
+	setup_clangd || return 1
+	setup_tree_sitter || return 1
 }
 
-# Setup Tmux
+# ─── Setup: Tmux ──────────────────────────────────────────────────────────────
 setup_tmux() {
 	log_info "Setting up Tmux..."
 	install_package tmux || return 1
-	copy_config "$DIST_ROOT/tmux/tmux.conf" $HOME/.tmux.conf || return 1
-	copy_config "$DIST_ROOT/tmux/tmux.conf.local" $HOME/.tmux.conf.local || return 1
-	copy_config "$DIST_ROOT/tmux/tmux.conf.debug" $HOME/.tmux.conf.debug || return 1
+	copy_config "$DIST_ROOT/tmux/tmux.conf" "$HOME/.tmux.conf" || return 1
+	copy_config "$DIST_ROOT/tmux/tmux.conf.local" "$HOME/.tmux.conf.local" || return 1
+	copy_config "$DIST_ROOT/tmux/tmux.conf.debug" "$HOME/.tmux.conf.debug" || return 1
 	log_success "Tmux setup completed"
 }
 
-# Setup Powerline
+# ─── Setup: Powerline ─────────────────────────────────────────────────────────
 setup_powerline() {
 	log_info "Setting up Powerline..."
 	install_package powerline || return 1
 	install_package powerline-fonts || return 1
-	install_package python-pip || return 1
+	install_package python3-pip || return 1
 
 	# Add powerline to bashrc if not present
-	if ! grep -q "powerline-daemon" $HOME/.bashrc; then
+	if ! grep -q "powerline-daemon" "$HOME/.bashrc"; then
 		log_info "Adding powerline to ~/.bashrc..."
-		cat "$DIST_ROOT/powerline/bashrc" >>$HOME/.bashrc
+		cat "$DIST_ROOT/powerline/bashrc" >>"$HOME/.bashrc"
 		log_success "Powerline added to ~/.bashrc"
 	else
 		log_info "Powerline already configured in ~/.bashrc"
@@ -156,21 +79,21 @@ setup_powerline() {
 
 	# Install powerline-gitstatus
 	log_info "Installing powerline-gitstatus..."
-	if pip install powerline-gitstatus --user; then
+	if python3 -m pip install powerline-gitstatus --user --break-system-packages 2>/dev/null \
+		|| python3 -m pip install powerline-gitstatus --user; then
 		log_success "powerline-gitstatus installed"
 	else
-		log_error "Failed to install powerline-gitstatus"
+		log_error "Failed to install powerline-gitstatus — check pip configuration."
 		return 1
 	fi
 
 	# Configure powerline
-	local POWERLINE_LOCAL_CONFIG=$HOME/.config/powerline/
-	local POWERLINE_GLOBAL_CONFIG1=/etc/xdg/powerline/config_files/
-	local POWERLINE_GLOBAL_CONFIG2=/etc/xdg/powerline/
+	local POWERLINE_LOCAL_CONFIG="$HOME/.config/powerline/"
+	local POWERLINE_GLOBAL_CONFIG1="/etc/xdg/powerline/config_files/"
+	local POWERLINE_GLOBAL_CONFIG2="/etc/xdg/powerline/"
 
 	mkdir -p "$POWERLINE_LOCAL_CONFIG"
 
-	# Try to copy from the first possible global config location
 	if [ -d "$POWERLINE_GLOBAL_CONFIG1" ]; then
 		log_info "Copying global powerline config from $POWERLINE_GLOBAL_CONFIG1..."
 		sudo cp -r "$POWERLINE_GLOBAL_CONFIG1"/* "$POWERLINE_LOCAL_CONFIG"
@@ -181,78 +104,98 @@ setup_powerline() {
 		log_warning "No global powerline config directory found, skipping global config copy"
 	fi
 
-	sudo chown "$USER:$USER" "$POWERLINE_LOCAL_CONFIG" -R
+	sudo chown "$(whoami):$(whoami)" "$POWERLINE_LOCAL_CONFIG" -R
 
-	# Copy custom powerline configuration
 	log_info "Copying custom powerline configuration..."
 	copy_config "$DIST_ROOT/powerline/colorschemes" "$POWERLINE_LOCAL_CONFIG" || return 1
 	copy_config "$DIST_ROOT/powerline/colors.json" "$POWERLINE_LOCAL_CONFIG" || return 1
 	copy_config "$DIST_ROOT/powerline/config.json" "$POWERLINE_LOCAL_CONFIG" || return 1
 	copy_config "$DIST_ROOT/powerline/themes" "$POWERLINE_LOCAL_CONFIG" || return 1
 
-	# Restart powerline daemon
 	log_info "Restarting powerline daemon..."
 	if powerline-daemon --replace; then
 		log_success "Powerline daemon restarted"
 	else
-		log_error "Failed to restart powerline daemon"
+		log_error "Failed to restart powerline daemon."
 		return 1
 	fi
 
 	log_success "Powerline setup completed"
 }
 
-# Setup GDB
+# ─── Setup: GDB ───────────────────────────────────────────────────────────────
 setup_gdb() {
 	log_info "Setting up GDB..."
 	install_package gdb || return 1
 
-	# Install pygments
 	log_info "Installing pygments..."
-	if pip install pygments --user; then
+	if python3 -m pip install pygments --user --break-system-packages 2>/dev/null \
+		|| python3 -m pip install pygments --user; then
 		log_success "pygments installed"
 	else
-		log_error "Failed to install pygments"
+		log_error "Failed to install pygments — check pip configuration."
 		return 1
 	fi
 
-	copy_config "$DIST_ROOT/gdb/gdbinit" $HOME/.gdbinit || return 1
-	mkdir -p $HOME/.gdbinit.d
+	copy_config "$DIST_ROOT/gdb/gdbinit" "$HOME/.gdbinit" || return 1
+	mkdir -p "$HOME/.gdbinit.d"
 	log_success "GDB setup completed"
 }
 
-# Main setup function
+# ─── Main ─────────────────────────────────────────────────────────────────────
 main() {
-	# If called with --neovim, only run the Neovim setup
-	if [ "$1" = "--neovim" ]; then
-		echo -e "${GREEN}\nRunning Neovim setup only...${RST}"
-		setup_neovim || exit 1
-		echo -e "${GREEN}\nNeovim setup completed.${RST}"
-		return 0
+	local TOTAL_STEPS=5
+	local SKIP_NEOVIM=false
+
+	# Parse flags
+	for _arg in "$@"; do
+		case "$_arg" in
+			--neovim)
+				print_section 1 1 "📝" "NEOVIM"
+				setup_neovim || die "Neovim setup failed — check the output above."
+				echo ""
+				log_success "${BOLD}Neovim setup completed.${RST}"
+				return 0
+				;;
+			--skip-neovim) SKIP_NEOVIM=true ;;
+		esac
+	done
+
+	if [ "$SKIP_NEOVIM" = true ]; then
+		TOTAL_STEPS=4
+		log_warning "Skipping Neovim step (--skip-neovim)"
 	fi
-	echo -e "${GREEN}\nSetting up Fedora...\n${RST}"
 
-	echo -e "\033[1mVIM\033[0m"
-	echo -e "${GREEN}==================================================================================${RST}"
-	setup_vim || exit 1
+	echo ""
+	echo -e "${GREEN}${BOLD}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓${RST}"
+	echo -e "${GREEN}${BOLD}┃${RST}  🐧  ${BOLD}Setting up Fedora environment${RST}"
+	echo -e "${GREEN}${BOLD}┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${RST}"
 
-	echo -e "\033[1mNeovim\033[0m"
-	echo -e "${GREEN}==================================================================================${RST}"
-	setup_neovim || exit 1
+	print_section 1 $TOTAL_STEPS "✏️" "VIM"
+	setup_vim || die "Vim setup failed — check the output above."
 
-	echo -e "\033[1mTMUX\033[0m"
-	echo -e "${GREEN}==================================================================================${RST}"
-	setup_tmux || exit 1
+	local step=2
+	if [ "$SKIP_NEOVIM" = false ]; then
+		print_section $step $TOTAL_STEPS "📝" "NEOVIM"
+		setup_neovim || die "Neovim setup failed — check the output above."
+		step=$((step + 1))
+	fi
 
-	echo -e "\033[1mPOWERLINE\033[0m"
-	echo -e "${GREEN}==================================================================================${RST}"
-	setup_powerline || exit 1
+	print_section $step $TOTAL_STEPS "🖥️" "TMUX"
+	setup_tmux || die "Tmux setup failed — check the output above."
+	step=$((step + 1))
 
-	echo -e "\033[1mGDB\033[0m"
-	echo -e "${GREEN}==================================================================================${RST}"
-	setup_gdb || exit 1
+	print_section $step $TOTAL_STEPS "⚡" "POWERLINE"
+	setup_powerline || die "Powerline setup failed — check the output above."
+	step=$((step + 1))
 
-	echo -e "${GREEN}\nAll setups completed successfully!${RST}"
+	print_section $step $TOTAL_STEPS "🔍" "GDB"
+	setup_gdb || die "GDB setup failed — check the output above."
+
+	echo ""
+	echo -e "${GREEN}${BOLD}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓${RST}"
+	echo -e "${GREEN}${BOLD}┃${RST}  🎉  ${BOLD}All setups completed successfully!${RST}"
+	echo -e "${GREEN}${BOLD}┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${RST}"
 }
 
 main "$@"

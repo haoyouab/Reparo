@@ -1,0 +1,40 @@
+FROM fedora:latest
+
+# ─── Build arguments for dynamic user ───────────────────────────────────────
+ARG USERNAME=dev
+ARG USER_UID=1000
+
+# ─── Install sudo and basic tools for tput ────────────────────────────────────
+RUN dnf install -y sudo ncurses bash && dnf clean all
+
+# ─── Create user matching host (uid matching for volume mounts) ──────────────
+RUN useradd -m -u ${USER_UID} ${USERNAME} \
+	&& echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" >>/etc/sudoers
+
+# ─── Copy repo into container ─────────────────────────────────────────────────
+COPY --chown=${USERNAME}:${USERNAME} . /home/${USERNAME}/Reparo
+
+# ─── Switch to user ─────────────────────────────────────────────────────────
+USER ${USERNAME}
+WORKDIR /home/${USERNAME}/Reparo
+
+# Ensure .bashrc exists (powerline appends to it)
+RUN touch /home/${USERNAME}/.bashrc
+
+# ─── Run setup during build (bake configs into image) ────────────────────────
+# GITHUB_TOKEN: pass a GitHub personal access token to avoid API rate limits
+#   docker build --build-arg GITHUB_TOKEN=ghp_xxx ...
+ARG SKIP_NEOVIM=false
+ARG GITHUB_TOKEN=
+ENV GITHUB_TOKEN=${GITHUB_TOKEN}
+RUN bash -c '\
+  args=""; \
+  [ "$SKIP_NEOVIM" = "true" ] && args="--skip-neovim"; \
+  bash setup $args'
+# Clear token from final image (do NOT leak secrets into image layers)
+ENV GITHUB_TOKEN=
+
+# ─── Default: interactive shell in home directory ─────────────────────────────
+ENV PATH="/home/${USERNAME}/.local/bin:/home/${USERNAME}/.cargo/bin:${PATH}"
+WORKDIR /home/${USERNAME}
+CMD ["bash"]
