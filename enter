@@ -1,0 +1,164 @@
+#!/bin/bash
+# ─────────────────────────────────────────────────────────────────────────────
+#  enter — Quickly launch or attach to a Reparo Docker dev container
+#
+#  Usage:
+#    bash enter              # Enter Ubuntu container (default)
+#    bash enter -i           # Interactive: choose Fedora or Ubuntu
+#    bash enter --fedora     # Enter Fedora container directly
+#    bash enter --ubuntu     # Enter Ubuntu container directly
+#
+#  Behavior:
+#    - If a container is already running, attach to it
+#    - If an image exists but no container is running, start a new one
+#    - If no image exists, prompt to build first
+# ─────────────────────────────────────────────────────────────────────────────
+
+set -euo pipefail
+
+# ─── Locate project root ─────────────────────────────────────────────────────
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# ─── Colors (safe for non-TTY) ──────────────────────────────────────────────
+RED=$(tput setaf 1 2>/dev/null || true)
+GREEN=$(tput setaf 2 2>/dev/null || true)
+YELLOW=$(tput setaf 3 2>/dev/null || true)
+BLUE=$(tput setaf 4 2>/dev/null || true)
+CYAN=$(tput setaf 6 2>/dev/null || true)
+BOLD=$(tput bold 2>/dev/null || true)
+RST=$(tput sgr0 2>/dev/null || true)
+
+# ─── Logging ────────────────────────────────────────────────────────────────
+log_info() { echo -e "  ${BLUE}ℹ️  ${RST}$1"; }
+log_success() { echo -e "  ${GREEN}✅ ${RST}$1"; }
+log_warning() { echo -e "  ${YELLOW}⚠️  ${RST}$1"; }
+log_error() { echo -e "  ${RED}❌ ${RST}$1"; }
+
+# ─── Parse arguments ────────────────────────────────────────────────────────
+DISTRO=""
+INTERACTIVE=false
+
+for arg in "$@"; do
+	case "$arg" in
+		-i | --interactive)
+			INTERACTIVE=true
+			;;
+		--fedora)
+			DISTRO="fedora"
+			;;
+		--ubuntu)
+			DISTRO="ubuntu"
+			;;
+		--help | -h)
+			echo ""
+			echo "Usage: bash enter [OPTIONS]"
+			echo ""
+			echo "Options:"
+			echo "  -i, --interactive     Choose distro interactively"
+			echo "  --fedora              Enter Fedora container"
+			echo "  --ubuntu              Enter Ubuntu container (default)"
+			echo "  --help, -h            Show this help message"
+			echo ""
+			echo "Examples:"
+			echo "  bash enter              # Enter Ubuntu container"
+			echo "  bash enter -i           # Interactive distro selection"
+			echo "  bash enter --fedora     # Enter Fedora container"
+			echo ""
+			exit 0
+			;;
+		*)
+			echo "Unknown option: $arg (use --help for usage)"
+			exit 1
+			;;
+	esac
+done
+
+# ─── Interactive selection ──────────────────────────────────────────────────
+if [ "$INTERACTIVE" = true ]; then
+	echo ""
+	echo -e "${CYAN}${BOLD}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓${RST}"
+	echo -e "${CYAN}${BOLD}┃${RST}  🐳  ${BOLD}Select Docker Dev Environment${RST}"
+	echo -e "${CYAN}${BOLD}┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${RST}"
+	echo ""
+	echo -e "  ${BOLD}1)${RST}  🟠  Fedora"
+	echo -e "  ${BOLD}2)${RST}  🟣  Ubuntu"
+	echo ""
+	while true; do
+		read -rp "  Select [1-2]: " choice
+		case "$choice" in
+			1)
+				DISTRO="fedora"
+				break
+				;;
+			2)
+				DISTRO="ubuntu"
+				break
+				;;
+			*)
+				echo -e "  ${RED}Invalid choice. Please enter 1 or 2.${RST}"
+				;;
+		esac
+	done
+	echo ""
+fi
+
+# ─── Default to Ubuntu ─────────────────────────────────────────────────────
+if [ -z "$DISTRO" ]; then
+	DISTRO="ubuntu"
+fi
+
+# ─── Check Docker availability ─────────────────────────────────────────────
+if ! command -v docker &>/dev/null; then
+	log_error "Docker is not installed or not in PATH."
+	echo ""
+	echo "  Install Docker: https://docs.docker.com/get-docker/"
+	exit 1
+fi
+
+IMAGE_NAME="reparo-dev-${DISTRO}"
+CONTAINER_NAME="reparo-dev-${DISTRO}"
+HOST_HOME="$HOME"
+
+# ─── Check if image exists ─────────────────────────────────────────────────
+if ! docker image inspect "$IMAGE_NAME" &>/dev/null; then
+	log_warning "Image ${BOLD}${IMAGE_NAME}${RST} not found."
+	echo ""
+	read -rp "  Build it now? [Y/n]: " answer
+	case "${answer:-Y}" in
+		[Yy] | [Yy][Ee][Ss] | "")
+			echo ""
+			bash "$PROJECT_ROOT/docker/build.sh" "--${DISTRO}"
+			echo ""
+			;;
+		*)
+			log_info "Run ${BOLD}bash setup --docker --${DISTRO}${RST} to build the image first."
+			exit 0
+			;;
+	esac
+fi
+
+# ─── Check if container is already running ──────────────────────────────────
+if docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+	log_info "Attaching to running container: ${BOLD}${CONTAINER_NAME}${RST}"
+	echo ""
+	exec docker exec -it -w "$(pwd)" "$CONTAINER_NAME" bash
+fi
+
+# ─── Check if container exists but is stopped ──────────────────────────────
+if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+	log_info "Starting stopped container: ${BOLD}${CONTAINER_NAME}${RST}"
+	docker start "$CONTAINER_NAME" >/dev/null
+	echo ""
+	exec docker exec -it -w "$(pwd)" "$CONTAINER_NAME" bash
+fi
+
+# ─── Start a new container ──────────────────────────────────────────────────
+# Mount host home directory into container at the same path for seamless experience
+log_info "Starting new container: ${BOLD}${CONTAINER_NAME}${RST} (${DISTRO})"
+log_info "Mounting: ${BOLD}${HOST_HOME}${RST} → ${BOLD}${HOST_HOME}${RST}"
+echo ""
+exec docker run -it \
+	--name "$CONTAINER_NAME" \
+	-v "${HOST_HOME}:${HOST_HOME}:z" \
+	-w "$(pwd)" \
+	"$IMAGE_NAME"
