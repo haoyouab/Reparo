@@ -34,6 +34,7 @@ log_error() { echo -e "  ${RED}❌ ${RST}$1"; }
 DISTRO="fedora"
 SKIP_NEOVIM=false
 GITHUB_TOKEN="${GITHUB_TOKEN:-}"
+OFFLINE_SRC_DIR=""
 
 for arg in "$@"; do
 	case "$arg" in
@@ -43,6 +44,9 @@ for arg in "$@"; do
 		--github-token=*)
 			GITHUB_TOKEN="${arg#--github-token=}"
 			;;
+		--offline=*)
+			OFFLINE_SRC_DIR="${arg#--offline=}"
+			;;
 		--help | -h)
 			echo ""
 			echo "Usage: bash setup --docker [OPTIONS]"
@@ -51,12 +55,14 @@ for arg in "$@"; do
 			echo "  --fedora              Use Fedora base image (default)"
 			echo "  --ubuntu              Use Ubuntu base image"
 			echo "  --skip-neovim         Skip Neovim setup (faster, no Rust/cargo)"
+			echo "  --offline=DIR         Use offline packages from DIR (skip GitHub downloads)"
 			echo "  --help, -h            Show this help message"
 			echo ""
 			echo "Examples:"
 			echo "  bash setup --docker                  # Fedora, full setup"
 			echo "  bash setup --docker --ubuntu         # Ubuntu, full setup"
 			echo "  bash setup --docker --skip-neovim    # Fedora, skip Neovim"
+			echo "  bash setup --docker --offline=/path/to/packages"
 			echo ""
 			echo "If you hit GitHub API rate limits, pass a token:"
 			echo "  bash setup --docker --github-token=ghp_xxx"
@@ -96,6 +102,34 @@ fi
 if [ -n "$GITHUB_TOKEN" ]; then
 	BUILD_ARGS+=(--build-arg "GITHUB_TOKEN=${GITHUB_TOKEN}")
 fi
+
+# ─── Handle offline packages ──────────────────────────────────────────────────────
+OFFLINE_STAGE_DIR="$PROJECT_ROOT/.offline-packages"
+OFFLINE_STAGED=false
+
+if [ -n "$OFFLINE_SRC_DIR" ]; then
+	if [ ! -d "$OFFLINE_SRC_DIR" ]; then
+		log_error "Offline directory does not exist: $OFFLINE_SRC_DIR"
+		exit 1
+	fi
+	log_info "Staging offline packages from ${BOLD}${OFFLINE_SRC_DIR}${RST} into build context..."
+	mkdir -p "$OFFLINE_STAGE_DIR"
+	cp -r "$OFFLINE_SRC_DIR"/* "$OFFLINE_STAGE_DIR/" 2>/dev/null || {
+		log_error "Failed to copy offline packages to build context."
+		exit 1
+	}
+	OFFLINE_STAGED=true
+	BUILD_ARGS+=(--build-arg "OFFLINE_ARGS=--offline=/tmp/Reparo/.offline-packages")
+	log_success "Offline packages staged"
+fi
+
+# Clean up staged offline packages on exit
+cleanup_offline() {
+	if [ "$OFFLINE_STAGED" = true ] && [ -d "$OFFLINE_STAGE_DIR" ]; then
+		rm -rf "$OFFLINE_STAGE_DIR"
+	fi
+}
+trap cleanup_offline EXIT
 
 # ─── Header ─────────────────────────────────────────────────────────────────
 echo ""

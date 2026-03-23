@@ -19,6 +19,10 @@ trap 'echo -e "\n${RED}❌ Setup interrupted by user. Exiting...${RST}"; rm -rf 
 DOWNLOAD_DIR=$(mktemp -d /tmp/reparo-setup.XXXXXX)
 trap 'rm -rf "$DOWNLOAD_DIR" 2>/dev/null' EXIT
 
+# ─── Offline package directory (set via --offline=DIR) ────────────────────────
+# When set, curl downloads from GitHub are skipped; packages are read from here.
+OFFLINE_DIR="${OFFLINE_DIR:-}"
+
 # ─── Backup directory for overwritten configs ─────────────────────────────────
 BACKUP_DIR="$HOME/.config-backup-$(date +%Y%m%d-%H%M%S)"
 BACKUP_CREATED=false
@@ -75,6 +79,26 @@ copy_config() {
 		log_success "Copied to $dest"
 	else
 		log_error "Failed to copy $src → $dest — check permissions."
+		return 1
+	fi
+}
+
+# ─── Helper: find offline package in OFFLINE_DIR ──────────────────────────────
+find_offline_package() {
+	local pattern=$1
+	local description=$2
+	if [ -z "$OFFLINE_DIR" ]; then
+		return 1
+	fi
+	local found
+	found=$(find "$OFFLINE_DIR" -maxdepth 1 -name "$pattern" -print -quit 2>/dev/null)
+	if [ -n "$found" ]; then
+		log_info "Found offline package: ${BOLD}$(basename "$found")${RST}" >&2
+		echo "$found"
+		return 0
+	else
+		log_error "Offline package not found in $OFFLINE_DIR (pattern: $pattern)" >&2
+		log_error "Expected: $description" >&2
 		return 1
 	fi
 }
@@ -162,12 +186,14 @@ setup_clangd() {
 		return 1
 	}
 
-	local download_url
-	download_url=$(github_release_url "clangd/clangd" "clangd-linux.*\\.zip") || return 1
-
-	local filepath
-	filepath=$(download_file "$download_url") || return 1
-	local filename
+	local filepath filename
+	if [ -n "$OFFLINE_DIR" ]; then
+		filepath=$(find_offline_package "clangd-linux-*.zip" "clangd-linux-<arch>.zip (from https://github.com/clangd/clangd/releases)") || return 1
+	else
+		local download_url
+		download_url=$(github_release_url "clangd/clangd" "clangd-linux.*\\.zip") || return 1
+		filepath=$(download_file "$download_url") || return 1
+	fi
 	filename=$(basename "$filepath")
 
 	copy_config "$filepath" "$clangd_path" || return 1

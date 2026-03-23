@@ -39,10 +39,12 @@ RUN touch /root/.bashrc
 #   docker build --build-arg GITHUB_TOKEN=ghp_xxx ...
 ARG SKIP_NEOVIM=false
 ARG GITHUB_TOKEN=
+ARG OFFLINE_ARGS=
 ENV GITHUB_TOKEN=${GITHUB_TOKEN}
 RUN bash -c '\
   args=""; \
   [ "$SKIP_NEOVIM" = "true" ] && args="--skip-neovim"; \
+  [ -n "$OFFLINE_ARGS" ] && args="$args $OFFLINE_ARGS"; \
   bash setup $args'
 # Clear token from final image (do NOT leak secrets into image layers)
 ENV GITHUB_TOKEN=

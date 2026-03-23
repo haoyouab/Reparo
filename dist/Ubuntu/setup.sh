@@ -52,12 +52,15 @@ setup_neovim() {
 	arch=$(detect_arch) || return 1
 	log_info "Detected architecture: ${BOLD}${arch}${RST}"
 
-	local nvim_pattern="nvim-linux-${arch}.*\\.tar\\.gz"
-	local download_url
-	download_url=$(github_release_url "neovim/neovim" "$nvim_pattern") || return 1
-
 	local filepath
-	filepath=$(download_file "$download_url") || return 1
+	if [ -n "$OFFLINE_DIR" ]; then
+		filepath=$(find_offline_package "nvim-linux-${arch}*.tar.gz" "nvim-linux-${arch}.tar.gz (from https://github.com/neovim/neovim/releases)") || return 1
+	else
+		local nvim_pattern="nvim-linux-${arch}.*\\.tar\\.gz"
+		local download_url
+		download_url=$(github_release_url "neovim/neovim" "$nvim_pattern") || return 1
+		filepath=$(download_file "$download_url") || return 1
+	fi
 
 	mkdir -p "$HOME/.local"
 	log_info "Extracting Neovim to ~/.local..."
@@ -172,6 +175,13 @@ main() {
 				return 0
 				;;
 			--skip-neovim) SKIP_NEOVIM=true ;;
+			--offline=*)
+				export OFFLINE_DIR="${_arg#--offline=}"
+				if [ ! -d "$OFFLINE_DIR" ]; then
+					die "Offline directory does not exist: $OFFLINE_DIR"
+				fi
+				log_info "Offline mode: using packages from ${BOLD}${OFFLINE_DIR}${RST}"
+				;;
 		esac
 	done
 

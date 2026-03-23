@@ -34,6 +34,23 @@ source ~/.bashrc
 bash setup --skip-neovim
 ```
 
+### 📦 离线模式
+
+如果网络环境无法顺畅访问 GitHub（如 curl 下载缓慢），可以提前下载好安装包，使用 `--offline` 选项跳过网络下载：
+
+```bash
+bash setup --offline=/path/to/packages
+```
+
+离线目录中需要包含以下文件（从 GitHub Releases 下载）：
+
+| 文件 | 来源 | 说明 |
+|------|------|------|
+| `nvim-linux-x86_64.tar.gz` | [neovim/neovim](https://github.com/neovim/neovim/releases) | Neovim 二进制（仅 Ubuntu 需要，aarch64 架构则下载对应版本） |
+| `clangd-linux-*.zip` | [clangd/clangd](https://github.com/clangd/clangd/releases) | clangd 语言服务器 |
+
+> Fedora 通过 `dnf` 安装 Neovim，因此只需准备 clangd 安装包。
+
 ## 🐳 Docker 开发环境
 
 不想修改宿主机？可以在 Docker 容器中使用预配置好的开发环境：
@@ -47,6 +64,10 @@ bash setup --docker --ubuntu
 
 # 跳过 Neovim（更快）
 bash setup --docker --skip-neovim
+
+# 使用离线安装包构建（避免容器内下载）
+bash setup --docker --offline=/path/to/packages
+bash setup --docker --ubuntu --offline=/path/to/packages
 ```
 
 > 容器内用户名和 UID 自动与宿主机当前用户保持一致，挂载目录无权限问题。
@@ -120,7 +141,8 @@ Reparo/
 - 🛡️ **健壮的错误处理** — 任意步骤失败立即中止，明确的错误提示
 - 📦 **自动备份** — 覆盖前自动备份已有配置到 `~/.config-backup-<timestamp>/`
 - 🏗️ **架构感知** — 自动检测 x86_64 / aarch64 下载对应二进制
-- 🔄 **共享函数库** — `dist/common.sh` 消除重复代码
+- � **离线模式** — `--offline=DIR` 支持离线安装，无需访问 GitHub
+- �🔄 **共享函数库** — `dist/common.sh` 消除重复代码
 - 🐳 **Docker 开发环境** — 一键构建可直接使用的容器化开发环境
 - 🐳 **Docker 测试** — 完整的容器化集成测试
 

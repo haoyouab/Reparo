@@ -158,6 +158,13 @@ main() {
 				return 0
 				;;
 			--skip-neovim) SKIP_NEOVIM=true ;;
+			--offline=*)
+				export OFFLINE_DIR="${_arg#--offline=}"
+				if [ ! -d "$OFFLINE_DIR" ]; then
+					die "Offline directory does not exist: $OFFLINE_DIR"
+				fi
+				log_info "Offline mode: using packages from ${BOLD}${OFFLINE_DIR}${RST}"
+				;;
 		esac
 	done
 

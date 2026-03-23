@@ -50,6 +50,7 @@ main() {
 				echo "Options:"
 				echo "  --neovim                  Only setup Neovim (clangd + tree-sitter)"
 				echo "  --skip-neovim             Setup everything except Neovim"
+				echo "  --offline=DIR             Use offline packages from DIR (skip GitHub downloads)"
 				echo "  --docker                  Build a Docker dev environment instead of local setup"
 				echo "  --fedora                  Docker: use Fedora base image (default)"
 				echo "  --ubuntu                  Docker: use Ubuntu base image"
@@ -59,9 +60,11 @@ main() {
 				echo "  bash setup                              # Full local setup"
 				echo "  bash setup --neovim                     # Neovim only"
 				echo "  bash setup --skip-neovim                # Skip Neovim (faster)"
+				echo "  bash setup --offline=/path/to/packages   # Offline mode (local)"
 				echo "  bash setup --docker                     # Docker dev env (Fedora)"
 				echo "  bash setup --docker --ubuntu            # Docker dev env (Ubuntu)"
 				echo "  bash setup --docker --skip-neovim       # Docker, skip Neovim"
+				echo "  bash setup --docker --offline=/path/to/packages  # Docker, offline mode"
 				return 0
 				;;
 			--docker)
@@ -71,6 +74,10 @@ main() {
 				DOCKER_ARGS+=("$_a")
 				;;
 			--github-token=*)
+				DOCKER_ARGS+=("$_a")
+				;;
+			--offline=*)
+				FORWARD_ARGS+=("$_a")
 				DOCKER_ARGS+=("$_a")
 				;;
 			--neovim | --skip-neovim)
