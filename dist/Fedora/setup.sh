@@ -112,7 +112,7 @@ setup_powerline() {
 	copy_config "$DIST_ROOT/powerline/themes" "$POWERLINE_LOCAL_CONFIG" || return 1
 
 	log_info "Restarting powerline daemon..."
-	if powerline-daemon --replace; then
+	if PYTHONWARNINGS=ignore::SyntaxWarning powerline-daemon --replace; then
 		log_success "Powerline daemon restarted"
 	else
 		log_error "Failed to restart powerline daemon."

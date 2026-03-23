@@ -13,8 +13,12 @@ ARG USER_UID=1000
 
 # ─── Install sudo and basic tools for tput ────────────────────────────────────
 RUN apt-get update \
-	&& apt-get install -y sudo ncurses-bin bash \
+	&& apt-get install -y sudo ncurses-bin bash locales \
+	&& locale-gen en_US.UTF-8 \
 	&& rm -rf /var/lib/apt/lists/*
+
+ENV LANG=en_US.UTF-8
+ENV LC_ALL=en_US.UTF-8
 
 # ─── Create user matching host (uid matching for volume mounts) ──────────────
 # Ubuntu base image has a built-in 'ubuntu' user at uid 1000; remove it first
