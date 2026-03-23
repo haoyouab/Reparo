@@ -1,5 +1,12 @@
 FROM fedora:latest
 
+# ─── Use Tsinghua mirror for faster package downloads ─────────────────────────
+RUN sed -e 's|^metalink=|#metalink=|g' \
+	-e 's|^#baseurl=http://download.example/pub/fedora/linux|baseurl=https://mirrors.tuna.tsinghua.edu.cn/fedora|g' \
+	-i.bak \
+	/etc/yum.repos.d/fedora.repo \
+	/etc/yum.repos.d/fedora-updates.repo
+
 # ─── Build arguments for dynamic user ───────────────────────────────────────
 ARG USERNAME=dev
 ARG USER_UID=1000
