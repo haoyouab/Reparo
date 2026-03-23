@@ -8,18 +8,31 @@ ARG USER_UID=1000
 RUN dnf install -y sudo ncurses bash && dnf clean all
 
 # ─── Create user matching host (uid matching for volume mounts) ──────────────
-RUN useradd -m -u ${USER_UID} ${USERNAME} \
-	&& echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" >>/etc/sudoers
+# If USER_UID is 0 (root), skip user creation and use root directly
+RUN if [ "${USER_UID}" -eq 0 ]; then \
+		echo "Using root user (UID 0)"; \
+	else \
+		useradd -m -u ${USER_UID} ${USERNAME} \
+		&& echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" >>/etc/sudoers; \
+	fi
 
 # ─── Copy repo into container ─────────────────────────────────────────────────
-COPY --chown=${USERNAME}:${USERNAME} . /home/${USERNAME}/Reparo
+# Use root's home when UID is 0, otherwise use the created user's home
+RUN if [ "${USER_UID}" -eq 0 ]; then \
+		mkdir -p /root/Reparo; \
+	else \
+		mkdir -p /home/${USERNAME}/Reparo; \
+	fi
+COPY . /tmp/Reparo
+RUN cp -r /tmp/Reparo/* /root/Reparo/ 2>/dev/null || cp -r /tmp/Reparo/. /root/Reparo/ || true
 
 # ─── Switch to user ─────────────────────────────────────────────────────────
-USER ${USERNAME}
-WORKDIR /home/${USERNAME}/Reparo
+# When running as root (UID 0), stay as root
+USER root
+WORKDIR /root/Reparo
 
 # Ensure .bashrc exists (powerline appends to it)
-RUN touch /home/${USERNAME}/.bashrc
+RUN touch /root/.bashrc
 
 # ─── Run setup during build (bake configs into image) ────────────────────────
 # GITHUB_TOKEN: pass a GitHub personal access token to avoid API rate limits
@@ -35,6 +48,6 @@ RUN bash -c '\
 ENV GITHUB_TOKEN=
 
 # ─── Default: interactive shell in home directory ─────────────────────────────
-ENV PATH="/home/${USERNAME}/.local/bin:/home/${USERNAME}/.cargo/bin:${PATH}"
-WORKDIR /home/${USERNAME}
+ENV PATH="/root/.local/bin:/root/.cargo/bin:${PATH}"
+WORKDIR /root
 CMD ["bash"]
