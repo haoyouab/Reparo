@@ -117,7 +117,6 @@ fi
 
 IMAGE_NAME="reparo-dev-${DISTRO}"
 CONTAINER_NAME="reparo-dev-${DISTRO}"
-HOST_HOME="$HOME"
 
 # ─── Check if image exists ─────────────────────────────────────────────────
 if ! docker image inspect "$IMAGE_NAME" &>/dev/null; then
@@ -147,18 +146,23 @@ fi
 # ─── Check if container exists but is stopped ──────────────────────────────
 if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
 	log_info "Starting stopped container: ${BOLD}${CONTAINER_NAME}${RST}"
-	docker start "$CONTAINER_NAME" >/dev/null
-	echo ""
-	exec docker exec -it -w "$(pwd)" "$CONTAINER_NAME" bash
+	if docker start "$CONTAINER_NAME" >/dev/null 2>&1; then
+		echo ""
+		exec docker exec -it -w "$(pwd)" "$CONTAINER_NAME" bash
+	else
+		log_warning "Failed to start container. Removing and recreating..."
+		docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true
+	fi
 fi
 
 # ─── Start a new container ──────────────────────────────────────────────────
-# Mount host home directory into container at the same path for seamless experience
+# Mount current working directory into container (not entire $HOME, which would
+# overwrite container configs like .vimrc, .config/nvim, .tmux.conf, etc.)
 log_info "Starting new container: ${BOLD}${CONTAINER_NAME}${RST} (${DISTRO})"
-log_info "Mounting: ${BOLD}${HOST_HOME}${RST} → ${BOLD}${HOST_HOME}${RST}"
+log_info "Mounting: ${BOLD}$(pwd)${RST} → ${BOLD}$(pwd)${RST}"
 echo ""
 exec docker run -it \
 	--name "$CONTAINER_NAME" \
-	-v "${HOST_HOME}:${HOST_HOME}:z" \
+	-v "$(pwd):$(pwd):z" \
 	-w "$(pwd)" \
 	"$IMAGE_NAME"
