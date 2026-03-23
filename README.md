@@ -1,25 +1,25 @@
 # 🛠️ Reparo
 
-一键配置 Linux 开发环境的脚本集合，支持 **Fedora** 和 **Ubuntu**。
+One-command Linux development environment setup scripts, supporting **Fedora** and **Ubuntu**.
 
-自动安装并配置以下工具：
+Automatically installs and configures the following tools:
 
-| 工具 | 说明 |
-|------|------|
-| **Vim** | 编辑器 + 自定义配置 |
-| **Neovim** | 现代编辑器 + clangd / tree-sitter |
-| **Tmux** | 终端复用器 |
-| **Powerline** | 状态栏美化 + gitstatus |
-| **GDB** | 调试器 + pygments 语法高亮 |
+| Tool | Description |
+|------|-------------|
+| **Vim** | Editor + custom configuration |
+| **Neovim** | Modern editor + clangd / tree-sitter |
+| **Tmux** | Terminal multiplexer |
+| **Powerline** | Status bar theming + gitstatus |
+| **GDB** | Debugger + pygments syntax highlighting |
 
-## 📋 前置要求
+## 📋 Prerequisites
 
 - Bash 4.0+
 - Git
-- sudo 权限（用于安装软件包）
-- 支持的发行版：Fedora 或 Ubuntu
+- sudo privileges (for installing packages)
+- Supported distributions: Fedora or Ubuntu
 
-## 🚀 快速开始
+## 🚀 Quick Start
 
 ```bash
 git clone https://github.com/haoyouab/Reparo.git
@@ -28,154 +28,154 @@ bash setup
 source ~/.bashrc
 ```
 
-跳过 Neovim（节省时间，不安装 Rust/cargo）：
+Skip Neovim (saves time, no Rust/cargo installation):
 
 ```bash
 bash setup --skip-neovim
 ```
 
-### 📦 离线模式
+### 📦 Offline Mode
 
-如果网络环境无法顺畅访问 GitHub（如 curl 下载缓慢），可以提前下载好安装包，使用 `--offline` 选项跳过网络下载：
+If your network cannot reliably access GitHub (e.g. slow curl downloads), you can pre-download the required packages and use the `--offline` option to skip network downloads:
 
 ```bash
 bash setup --offline=/path/to/packages
 ```
 
-离线目录中需要包含以下文件（从 GitHub Releases 下载）：
+The offline directory should contain the following files (downloaded from GitHub Releases):
 
-| 文件 | 来源 | 说明 |
-|------|------|------|
-| `nvim-linux-x86_64.tar.gz` | [neovim/neovim](https://github.com/neovim/neovim/releases) | Neovim 二进制（仅 Ubuntu 需要，aarch64 架构则下载对应版本） |
-| `clangd-linux-*.zip` | [clangd/clangd](https://github.com/clangd/clangd/releases) | clangd 语言服务器 |
+| File | Source | Description |
+|------|--------|-------------|
+| `nvim-linux-x86_64.tar.gz` | [neovim/neovim](https://github.com/neovim/neovim/releases) | Neovim binary (Ubuntu only; use the aarch64 variant for ARM architectures) |
+| `clangd-linux-*.zip` | [clangd/clangd](https://github.com/clangd/clangd/releases) | clangd language server |
 
-> Fedora 通过 `dnf` 安装 Neovim，因此只需准备 clangd 安装包。
+> Fedora installs Neovim via `dnf`, so only the clangd package is needed.
 
-## 🐳 Docker 开发环境
+## 🐳 Docker Dev Environment
 
-不想修改宿主机？可以在 Docker 容器中使用预配置好的开发环境：
+Don't want to modify your host machine? Use a pre-configured development environment inside a Docker container:
 
 ```bash
-# 构建 Fedora 开发环境（默认）
+# Build Fedora dev environment (default)
 bash setup --docker
 
-# 构建 Ubuntu 开发环境
+# Build Ubuntu dev environment
 bash setup --docker --ubuntu
 
-# 跳过 Neovim（更快）
+# Skip Neovim (faster)
 bash setup --docker --skip-neovim
 
-# 使用离线安装包构建（避免容器内下载）
+# Build with offline packages (avoid downloading inside the container)
 bash setup --docker --offline=/path/to/packages
 bash setup --docker --ubuntu --offline=/path/to/packages
 ```
 
-> 容器内用户名和 UID 自动与宿主机当前用户保持一致，挂载目录无权限问题。
+> The container user's name and UID automatically match the host user, so volume mounts have no permission issues.
 
-### 快速进入容器
+### Enter a Container
 
-构建完成后，使用 `enter` 脚本快速进入容器：
+After building, use the `enter` script to quickly enter a container:
 
 ```bash
-# 进入 Ubuntu 容器（默认）
+# Enter Ubuntu container (default)
 bash enter
 
-# 进入 Fedora 容器
+# Enter Fedora container
 bash enter --fedora
 
-# 交互式选择发行版
+# Interactive distro selection
 bash enter -i
 ```
 
-`enter` 脚本会自动检测容器状态：已运行则直接连接，已停止则启动后连接，镜像不存在则提示构建。
+The `enter` script automatically detects container state: attaches if running, starts then attaches if stopped, or prompts to build if the image doesn't exist.
 
-### 手动启动容器
+### Manual Container Launch
 
 ```bash
-# 交互式启动
+# Interactive start
 docker run -it reparo-dev-ubuntu
 
-# 挂载宿主机项目目录
+# Mount a host project directory
 docker run -it -v $(pwd):/home/$(whoami)/project:z reparo-dev-ubuntu
 
-# 后台运行，稍后连接
+# Run in background, attach later
 docker run -dit --name my-dev reparo-dev-ubuntu
 docker exec -it my-dev bash
 ```
 
-## 📁 项目结构
+## 📁 Project Structure
 
 ```
 Reparo/
-├── setup                    # 入口脚本，自动检测发行版
-├── enter                    # 快速进入 Docker 容器
+├── setup                    # Entry script, auto-detects distro
+├── enter                    # Quick-enter Docker container
 ├── dist/
-│   ├── common.sh            # 共享函数库（日志、备份、下载等）
+│   ├── common.sh            # Shared function library (logging, backup, download, etc.)
 │   ├── Fedora/
-│   │   ├── setup.sh         # Fedora 专用安装脚本
-│   │   ├── vim/             # Vim 配置文件
-│   │   ├── tmux/            # Tmux 配置文件
-│   │   ├── powerline/       # Powerline 配置文件
-│   │   └── gdb/             # GDB 配置文件
+│   │   ├── setup.sh         # Fedora-specific setup script
+│   │   ├── vim/             # Vim config files
+│   │   ├── tmux/            # Tmux config files
+│   │   ├── powerline/       # Powerline config files
+│   │   └── gdb/             # GDB config files
 │   └── Ubuntu/
-│       ├── setup.sh         # Ubuntu 专用安装脚本
-│       └── ...              # 同上
+│       ├── setup.sh         # Ubuntu-specific setup script
+│       └── ...              # Same as above
 ├── docker/
-│   ├── build.sh             # Docker 构建编排脚本
-│   ├── Dockerfile.fedora    # Fedora 开发环境镜像
-│   └── Dockerfile.ubuntu    # Ubuntu 开发环境镜像
+│   ├── build.sh             # Docker build orchestration script
+│   ├── Dockerfile.fedora    # Fedora dev environment image
+│   └── Dockerfile.ubuntu    # Ubuntu dev environment image
 ├── tests/
-│   ├── run_tests.sh         # 单元测试（91 个测试用例）
-│   ├── docker-test.sh       # Docker 集成测试运行器
-│   ├── verify-setup.sh      # 安装后验证脚本
-│   ├── Dockerfile.fedora    # Fedora 测试容器
-│   └── Dockerfile.ubuntu    # Ubuntu 测试容器
+│   ├── run_tests.sh         # Unit tests (91 test cases)
+│   ├── docker-test.sh       # Docker integration test runner
+│   ├── verify-setup.sh      # Post-install verification script
+│   ├── Dockerfile.fedora    # Fedora test container
+│   └── Dockerfile.ubuntu    # Ubuntu test container
 └── .github/workflows/
-    ├── ci.yml               # Lint（shellcheck + shfmt）+ 单元测试
-    └── integration.yml      # Docker 集成测试
+    ├── ci.yml               # Lint (shellcheck + shfmt) + unit tests
+    └── integration.yml      # Docker integration tests
 ```
 
-## ✨ 特性
+## ✨ Features
 
-- 🎨 **现代化 UI** — emoji 图标 + ANSI 彩色输出 + box-drawing 分隔符
-- 🛡️ **健壮的错误处理** — 任意步骤失败立即中止，明确的错误提示
-- 📦 **自动备份** — 覆盖前自动备份已有配置到 `~/.config-backup-<timestamp>/`
-- 🏗️ **架构感知** — 自动检测 x86_64 / aarch64 下载对应二进制
-- � **离线模式** — `--offline=DIR` 支持离线安装，无需访问 GitHub
-- �🔄 **共享函数库** — `dist/common.sh` 消除重复代码
-- 🐳 **Docker 开发环境** — 一键构建可直接使用的容器化开发环境
-- 🐳 **Docker 测试** — 完整的容器化集成测试
+- 🎨 **Modern UI** — Emoji icons + ANSI color output + box-drawing separators
+- 🛡️ **Robust Error Handling** — Aborts immediately on any step failure with clear error messages
+- 📦 **Auto Backup** — Automatically backs up existing configs to `~/.config-backup-<timestamp>/` before overwriting
+- 🏗️ **Architecture Aware** — Auto-detects x86_64 / aarch64 and downloads the matching binaries
+- 📦 **Offline Mode** — `--offline=DIR` supports offline installation without GitHub access
+- 🔄 **Shared Function Library** — `dist/common.sh` eliminates code duplication
+- 🐳 **Docker Dev Environment** — One-command build for a ready-to-use containerized dev environment
+- 🐳 **Docker Testing** — Full containerized integration tests
 
-## 🧪 测试
+## 🧪 Testing
 
-### 单元测试
+### Unit Tests
 
 ```bash
 bash tests/run_tests.sh
 ```
 
-### Docker 集成测试
+### Docker Integration Tests
 
-需要安装 Docker：
+Requires Docker:
 
 ```bash
-# 测试两个发行版
+# Test both distros
 bash tests/docker-test.sh
 
-# 仅测试 Fedora
+# Test Fedora only
 bash tests/docker-test.sh --fedora
 
-# 仅测试 Ubuntu
+# Test Ubuntu only
 bash tests/docker-test.sh --ubuntu
 
-# 跳过 Neovim（更快）
+# Skip Neovim (faster)
 SKIP_NEOVIM=true bash tests/docker-test.sh
 ```
 
 ### GitHub Actions CI
 
-- **Lint** — 每次 push / PR 自动运行 shellcheck、shfmt 检查和单元测试
-- **Integration** — 手动触发或 push 到 main 时运行 Docker 集成测试
+- **Lint** — Runs shellcheck, shfmt, and unit tests on every push / PR
+- **Integration** — Runs Docker integration tests on manual trigger or push to main
 
 ## 📄 License
 
