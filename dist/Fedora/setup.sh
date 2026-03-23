@@ -197,6 +197,8 @@ main() {
 	print_section $step $TOTAL_STEPS "🔍" "GDB"
 	setup_gdb || die "GDB setup failed — check the output above."
 
+	setup_docker_config
+
 	echo ""
 	echo -e "${GREEN}${BOLD}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓${RST}"
 	echo -e "${GREEN}${BOLD}┃${RST}  🎉  ${BOLD}All setups completed successfully!${RST}"

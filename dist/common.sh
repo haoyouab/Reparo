@@ -92,6 +92,28 @@ pip_install() {
 		--trusted-host pypi.tuna.tsinghua.edu.cn
 }
 
+# ─── Configure Docker detach key to avoid hijacking Ctrl-P ─────────────────────
+setup_docker_config() {
+	if ! command -v docker &>/dev/null; then
+		log_info "Docker not installed, skipping Docker config"
+		return 0
+	fi
+	local config_dir="$HOME/.docker"
+	local config_file="$config_dir/config.json"
+	mkdir -p "$config_dir"
+	if [ ! -f "$config_file" ]; then
+		echo '{"detachKeys": "ctrl-q,ctrl-q"}' >"$config_file"
+		log_success "Created $config_file with detachKeys=ctrl-q,ctrl-q"
+	elif command -v jq &>/dev/null; then
+		local tmp
+		tmp=$(jq '. + {"detachKeys": "ctrl-q,ctrl-q"}' "$config_file") \
+			&& echo "$tmp" >"$config_file" \
+			&& log_success "Updated Docker detachKeys in $config_file"
+	else
+		log_warning "jq not found; manually add \"detachKeys\": \"ctrl-q,ctrl-q\" to $config_file"
+	fi
+}
+
 # ─── Helper: find offline package in OFFLINE_DIR ──────────────────────────────
 find_offline_package() {
 	local pattern=$1
