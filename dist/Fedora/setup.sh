@@ -79,8 +79,7 @@ setup_powerline() {
 
 	# Install powerline-gitstatus
 	log_info "Installing powerline-gitstatus..."
-	if python3 -m pip install powerline-gitstatus --user --break-system-packages 2>/dev/null \
-		|| python3 -m pip install powerline-gitstatus --user; then
+	if pip_install powerline-gitstatus; then
 		log_success "powerline-gitstatus installed"
 	else
 		log_error "Failed to install powerline-gitstatus — check pip configuration."
@@ -129,8 +128,7 @@ setup_gdb() {
 	install_package gdb || return 1
 
 	log_info "Installing pygments..."
-	if python3 -m pip install pygments --user --break-system-packages 2>/dev/null \
-		|| python3 -m pip install pygments --user; then
+	if pip_install pygments; then
 		log_success "pygments installed"
 	else
 		log_error "Failed to install pygments — check pip configuration."

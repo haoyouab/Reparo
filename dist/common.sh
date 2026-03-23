@@ -83,6 +83,15 @@ copy_config() {
 	fi
 }
 
+# ─── Helper: pip install with Tsinghua mirror + PEP 668 handling ─────────────
+pip_install() {
+	local pkg=$1
+	python3 -m pip install "$pkg" \
+		--user --break-system-packages \
+		-i https://pypi.tuna.tsinghua.edu.cn/simple \
+		--trusted-host pypi.tuna.tsinghua.edu.cn
+}
+
 # ─── Helper: find offline package in OFFLINE_DIR ──────────────────────────────
 find_offline_package() {
 	local pattern=$1
