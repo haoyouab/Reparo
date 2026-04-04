@@ -27,7 +27,7 @@ RUN userdel -r ubuntu 2>/dev/null || true \
 	&& if [ "${USER_UID}" -eq 0 ]; then \
 		echo "Using root user (UID 0)"; \
 	else \
-		useradd -m -u ${USER_UID} ${USERNAME} \
+		useradd -m -s /bin/bash -u ${USER_UID} ${USERNAME} \
 		&& echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" >>/etc/sudoers; \
 	fi
 

@@ -29,9 +29,9 @@ setup_vim() {
 setup_neovim() {
 	local nvim_config_path="$HOME/.config"
 
-	log_info "Installing git, curl, jq, unzip, and python3-pip..."
-	sudo apt install git curl jq unzip python3-pip -y || {
-		log_error "Failed to install git/curl/jq/unzip/python3-pip packages."
+	log_info "Installing git, curl, jq, unzip, python3-pip, fd-find, and ripgrep..."
+	sudo apt install git curl jq unzip python3-pip fd-find ripgrep -y || {
+		log_error "Failed to install git/curl/jq/unzip/python3-pip/fd-find/ripgrep packages."
 		return 1
 	}
 
