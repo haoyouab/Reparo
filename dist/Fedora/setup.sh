@@ -29,9 +29,9 @@ setup_vim() {
 setup_neovim() {
 	local nvim_config_path="$HOME/.config"
 
-	log_info "Installing neovim, git, jq, and unzip..."
-	sudo dnf install -y neovim git jq unzip || {
-		log_error "Failed to install neovim/git/jq/unzip packages."
+	log_info "Installing neovim, git, jq, unzip, python3, and python3-pip..."
+	sudo dnf install -y neovim git jq unzip python3 python3-pip || {
+		log_error "Failed to install neovim/git/jq/unzip/python3/python3-pip packages."
 		return 1
 	}
 
@@ -49,6 +49,7 @@ setup_neovim() {
 
 	setup_clangd || return 1
 	setup_tree_sitter || return 1
+	setup_conform_formatters || return 1
 }
 
 # ─── Setup: Tmux ──────────────────────────────────────────────────────────────

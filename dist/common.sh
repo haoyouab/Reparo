@@ -313,3 +313,98 @@ setup_tree_sitter() {
 	ln -sf "$HOME/.cargo/bin/tree-sitter" "$HOME/.local/share/nvim/mason/bin/tree-sitter"
 	log_success "tree-sitter symlink created"
 }
+
+# ─── Setup: Conform.nvim formatters ──────────────────────────────────────────
+# Installs: prettier, black, shfmt, clang-format, taplo, rustfmt (nightly)
+setup_conform_formatters() {
+	log_info "Installing conform.nvim formatters..."
+
+	# ── prettier (html/css/js/ts/json) ──────────────────────────────────────
+	log_info "Installing ${BOLD}prettier${RST} via npm..."
+	if command -v dnf &>/dev/null; then
+		sudo dnf install -y nodejs npm || {
+			log_error "Failed to install nodejs/npm."
+			return 1
+		}
+	elif command -v apt &>/dev/null; then
+		sudo apt install -y nodejs npm || {
+			log_error "Failed to install nodejs/npm."
+			return 1
+		}
+	fi
+	sudo npm install -g prettier || {
+		log_error "Failed to install prettier."
+		return 1
+	}
+	log_success "prettier installed"
+
+	# ── black (python) ──────────────────────────────────────────────────────
+	log_info "Installing ${BOLD}black${RST} via pip..."
+	pip_install black || {
+		log_error "Failed to install black."
+		return 1
+	}
+	log_success "black installed"
+
+	# ── shfmt (sh/bash) ─────────────────────────────────────────────────────
+	log_info "Installing ${BOLD}shfmt${RST}..."
+	if command -v dnf &>/dev/null; then
+		sudo dnf install -y shfmt || {
+			log_error "Failed to install shfmt."
+			return 1
+		}
+	elif command -v apt &>/dev/null; then
+		# apt版本过旧，通过 go install 获取最新版
+		sudo apt install -y golang-go || {
+			log_error "Failed to install golang."
+			return 1
+		}
+		go install mvdan.cc/sh/v3/cmd/shfmt@latest || {
+			log_error "Failed to install shfmt via go."
+			return 1
+		}
+		# Link into ~/.local/bin so it's on PATH
+		mkdir -p "$HOME/.local/bin"
+		ln -sf "$HOME/go/bin/shfmt" "$HOME/.local/bin/shfmt"
+	fi
+	log_success "shfmt installed"
+
+	# ── clang-format (c/cpp) ────────────────────────────────────────────────
+	log_info "Installing ${BOLD}clang-format${RST}..."
+	if command -v dnf &>/dev/null; then
+		sudo dnf install -y clang-tools-extra || {
+			log_error "Failed to install clang-tools-extra."
+			return 1
+		}
+	elif command -v apt &>/dev/null; then
+		sudo apt install -y clang-format || {
+			log_error "Failed to install clang-format."
+			return 1
+		}
+	fi
+	log_success "clang-format installed"
+
+	# ── taplo (toml) ────────────────────────────────────────────────────────
+	log_info "Installing ${BOLD}taplo${RST} via cargo..."
+	# shellcheck disable=SC1091
+	[ -f "$HOME/.cargo/env" ] && source "$HOME/.cargo/env"
+	cargo install taplo-cli || {
+		log_error "Failed to install taplo-cli."
+		return 1
+	}
+	log_success "taplo installed"
+
+	# ── rustfmt nightly (rust) ──────────────────────────────────────────────
+	log_info "Installing ${BOLD}rustfmt${RST} nightly..."
+	rustup toolchain install nightly || {
+		log_error "Failed to install nightly toolchain."
+		return 1
+	}
+	rustup component add --toolchain nightly rustfmt || {
+		log_error "Failed to add rustfmt to nightly toolchain."
+		return 1
+	}
+	log_success "rustfmt nightly installed"
+
+	log_success "All conform.nvim formatters installed"
+}
