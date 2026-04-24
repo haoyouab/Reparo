@@ -69,7 +69,15 @@ RUN bash -c '\
 # Clear token from final image (do NOT leak secrets into image layers)
 ENV GITHUB_TOKEN=
 
-# ─── Default: interactive shell in home directory ─────────────────────────────
+# ─── Pre-install Neovim plugins (lazy.nvim sync) ─────────────────────────────
+# Run headless nvim once so lazy.nvim downloads all plugins during build,
+# avoiding first-launch delays and mason errors inside the container
 ENV PATH="/root/.local/bin:/root/.cargo/bin:${PATH}"
+RUN if [ "$SKIP_NEOVIM" != "true" ] && command -v nvim >/dev/null 2>&1; then \
+		nvim --headless "+Lazy! sync" +qa 2>/dev/null || true; \
+	fi
+
+# ─── Default: interactive shell in home directory ─────────────────────────────
+ENV SHELL=/bin/bash
 WORKDIR /root
 CMD ["bash"]

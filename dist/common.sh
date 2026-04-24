@@ -320,15 +320,32 @@ setup_conform_formatters() {
 	log_info "Installing conform.nvim formatters..."
 
 	# ── prettier (html/css/js/ts/json) ──────────────────────────────────────
-	log_info "Installing ${BOLD}prettier${RST} via npm..."
+	log_info "Installing ${BOLD}Node.js 22 + prettier${RST}..."
 	if command -v dnf &>/dev/null; then
 		sudo dnf install -y nodejs npm || {
 			log_error "Failed to install nodejs/npm."
 			return 1
 		}
 	elif command -v apt &>/dev/null; then
-		sudo apt install -y nodejs npm || {
-			log_error "Failed to install nodejs/npm."
+		# apt ships Node.js 18 which is too old for Copilot (requires ≥22)
+		# Download Node.js 22 binary from npmmirror (accessible in mainland China)
+		log_info "Fetching Node.js 22 latest version from npmmirror..."
+		local node_version
+		node_version=$(curl -fsSL https://npmmirror.com/mirrors/node/latest-v22.x/SHASUMS256.txt 2>/dev/null \
+			| grep "node-v.*-linux-x64.tar.xz" | head -1 \
+			| grep -oP 'node-v[0-9]+\.[0-9]+\.[0-9]+') || {
+			log_error "Failed to fetch Node.js version info."
+			return 1
+		}
+		local node_url="https://npmmirror.com/mirrors/node/latest-v22.x/${node_version}-linux-x64.tar.xz"
+		log_info "Downloading ${BOLD}${node_version}${RST} from npmmirror..."
+		local node_archive
+		node_archive=$(download_file "$node_url") || {
+			log_error "Failed to download Node.js."
+			return 1
+		}
+		sudo tar -xJf "$node_archive" -C /usr/local --strip-components=1 || {
+			log_error "Failed to extract Node.js."
 			return 1
 		}
 	fi
@@ -336,7 +353,7 @@ setup_conform_formatters() {
 		log_error "Failed to install prettier."
 		return 1
 	}
-	log_success "prettier installed"
+	log_success "prettier installed (Node.js $(node --version))"
 
 	# ── black (python) ──────────────────────────────────────────────────────
 	log_info "Installing ${BOLD}black${RST} via pip..."

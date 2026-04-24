@@ -72,6 +72,10 @@ setup_neovim() {
 	setup_clangd || return 1
 	setup_tree_sitter || return 1
 	setup_conform_formatters || return 1
+
+	log_info "Pre-installing Neovim plugins (lazy.nvim headless sync)..."
+	nvim --headless "+Lazy! sync" +qa 2>/dev/null || true
+	log_success "Neovim plugins pre-installed"
 }
 
 # ─── Setup: Tmux ──────────────────────────────────────────────────────────────
