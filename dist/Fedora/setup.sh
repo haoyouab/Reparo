@@ -29,9 +29,10 @@ setup_vim() {
 setup_neovim() {
 	local nvim_config_path="$HOME/.config"
 
-	log_info "Installing neovim, git, jq, unzip, python3, python3-pip, fd-find, and ripgrep..."
-	sudo dnf install -y neovim git jq unzip python3 python3-pip fd-find ripgrep || {
-		log_error "Failed to install neovim/git/jq/unzip/python3/python3-pip/fd-find/ripgrep packages."
+	log_info "Installing neovim, git, jq, unzip, python3, python3-pip, fd-find, ripgrep, and dev tools..."
+	sudo dnf install -y neovim git jq unzip python3 python3-pip fd-find ripgrep \
+		glib2-devel flex bison ninja-build clang gcc gcc-c++ make bear || {
+		log_error "Failed to install required packages."
 		return 1
 	}
 

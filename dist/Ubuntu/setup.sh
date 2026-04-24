@@ -29,11 +29,22 @@ setup_vim() {
 setup_neovim() {
 	local nvim_config_path="$HOME/.config"
 
-	log_info "Installing git, curl, jq, unzip, python3-pip, fd-find, and ripgrep..."
-	sudo apt install git curl jq unzip python3-pip fd-find ripgrep -y || {
-		log_error "Failed to install git/curl/jq/unzip/python3-pip/fd-find/ripgrep packages."
+	log_info "Installing git, curl, jq, unzip, python3-pip, fd-find, ripgrep, and dev tools..."
+	sudo apt install git curl jq unzip python3-pip fd-find ripgrep \
+		libglib2.0-dev flex bison ninja-build clang gcc g++ make bear -y || {
+		log_error "Failed to install required packages."
 		return 1
 	}
+
+	# Create python → python3 and pip → pip3 symlinks if not already present
+	if ! command -v python &>/dev/null; then
+		sudo ln -sf "$(command -v python3)" /usr/local/bin/python
+		log_info "Created symlink: python → python3"
+	fi
+	if ! command -v pip &>/dev/null; then
+		sudo ln -sf "$(command -v pip3)" /usr/local/bin/pip
+		log_info "Created symlink: pip → pip3"
+	fi
 
 	mkdir -p "$nvim_config_path" || {
 		log_error "Failed to create $nvim_config_path"

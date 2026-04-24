@@ -528,7 +528,7 @@ test_neovim_error_handling() {
 	" 2>&1)
 	_last_exit=$?
 	assert_exit_code 1 "$_last_exit" "[fedora] neovim: dnf fail aborts"
-	assert_output_contains "$_last_output" "Failed to install neovim/git/jq/unzip" "[fedora] neovim: shows error"
+	assert_output_contains "$_last_output" "Failed to install required packages" "[fedora] neovim: shows error"
 
 	# Ubuntu — sudo/apt failure aborts
 	_last_output=$(bash -c "
@@ -539,7 +539,7 @@ test_neovim_error_handling() {
 	" 2>&1)
 	_last_exit=$?
 	assert_exit_code 1 "$_last_exit" "[ubuntu] neovim: apt fail aborts"
-	assert_output_contains "$_last_output" "Failed to install git/curl/jq/unzip" "[ubuntu] neovim: shows error"
+	assert_output_contains "$_last_output" "Failed to install required packages" "[ubuntu] neovim: shows error"
 }
 
 # ═════════════════════════════════════════════════════════════════════════════
