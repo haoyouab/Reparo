@@ -3,10 +3,11 @@
 #  enter — Quickly launch or attach to a Reparo Docker dev container
 #
 #  Usage:
-#    bash enter              # Enter Ubuntu container (default)
-#    bash enter -i           # Interactive: choose Fedora or Ubuntu
-#    bash enter --fedora     # Enter Fedora container directly
-#    bash enter --ubuntu     # Enter Ubuntu container directly
+#    bash enter                        # Enter Ubuntu container (default)
+#    bash enter -i                     # Interactive: choose Fedora or Ubuntu
+#    bash enter --fedora               # Enter Fedora container directly
+#    bash enter --ubuntu               # Enter Ubuntu container directly
+#    bash enter --mount=/path/to/dir   # Mount a specific host directory
 #
 #  Behavior:
 #    - If a container is already running, attach to it
@@ -37,6 +38,7 @@ log_error() { echo -e "  ${RED}❌ ${RST}$1"; }
 # ─── Parse arguments ────────────────────────────────────────────────────────
 DISTRO=""
 INTERACTIVE=false
+MOUNT_DIR=""
 
 for arg in "$@"; do
 	case "$arg" in
@@ -49,6 +51,9 @@ for arg in "$@"; do
 		--ubuntu)
 			DISTRO="ubuntu"
 			;;
+		--mount=*)
+			MOUNT_DIR="${arg#--mount=}"
+			;;
 		--help | -h)
 			echo ""
 			echo "Usage: bash enter [OPTIONS]"
@@ -57,12 +62,14 @@ for arg in "$@"; do
 			echo "  -i, --interactive     Choose distro interactively"
 			echo "  --fedora              Enter Fedora container"
 			echo "  --ubuntu              Enter Ubuntu container (default)"
+			echo "  --mount=DIR           Mount a specific host directory into the container"
 			echo "  --help, -h            Show this help message"
 			echo ""
 			echo "Examples:"
-			echo "  bash enter              # Enter Ubuntu container"
-			echo "  bash enter -i           # Interactive distro selection"
-			echo "  bash enter --fedora     # Enter Fedora container"
+			echo "  bash enter                              # Enter Ubuntu container"
+			echo "  bash enter -i                           # Interactive distro selection"
+			echo "  bash enter --fedora                     # Enter Fedora container"
+			echo "  bash enter --mount=/home/user/project   # Mount specific directory"
 			echo ""
 			exit 0
 			;;
@@ -106,6 +113,19 @@ fi
 if [ -z "$DISTRO" ]; then
 	DISTRO="ubuntu"
 fi
+
+# ─── Validate --mount directory ─────────────────────────────────────────────
+if [ -n "$MOUNT_DIR" ]; then
+	MOUNT_DIR="$(realpath "$MOUNT_DIR" 2>/dev/null || echo "$MOUNT_DIR")"
+	if [ ! -d "$MOUNT_DIR" ]; then
+		log_error "Mount directory does not exist: ${BOLD}${MOUNT_DIR}${RST}"
+		exit 1
+	fi
+fi
+
+# ─── Determine effective mount directory ────────────────────────────────────
+# Default: $HOME; override with --mount if provided
+EFFECTIVE_MOUNT="${MOUNT_DIR:-$HOME}"
 
 # ─── Check Docker availability ─────────────────────────────────────────────
 if ! command -v docker &>/dev/null; then
@@ -156,13 +176,11 @@ if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
 fi
 
 # ─── Start a new container ──────────────────────────────────────────────────
-# Mount current working directory into container (not entire $HOME, which would
-# overwrite container configs like .vimrc, .config/nvim, .tmux.conf, etc.)
 log_info "Starting new container: ${BOLD}${CONTAINER_NAME}${RST} (${DISTRO})"
-log_info "Mounting: ${BOLD}$(pwd)${RST} → ${BOLD}$(pwd)${RST}"
+log_info "Mounting: ${BOLD}${EFFECTIVE_MOUNT}${RST} → ${BOLD}${EFFECTIVE_MOUNT}${RST}"
 echo ""
 exec docker run -it \
 	--name "$CONTAINER_NAME" \
-	-v "$(pwd):$(pwd):z" \
+	-v "${EFFECTIVE_MOUNT}:${EFFECTIVE_MOUNT}:z" \
 	-w "$(pwd)" \
 	"$IMAGE_NAME"
