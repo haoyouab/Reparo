@@ -189,6 +189,24 @@ main() {
 		log_warning "Skipping Neovim step (--skip-neovim)"
 	fi
 
+	# ─── Offline pre-flight check ──────────────────────────────────────────
+	if [ -n "${OFFLINE_DIR:-}" ] && [ "$SKIP_NEOVIM" = false ]; then
+		local arch
+		arch=$(detect_arch) || die "Cannot detect architecture."
+		local missing=false
+		if ! find "$OFFLINE_DIR" -maxdepth 1 -name "nvim-linux-${arch}*.tar.gz" -print -quit 2>/dev/null | grep -q .; then
+			log_error "Missing offline package: nvim-linux-${arch}*.tar.gz"
+			log_error "  Download from: https://github.com/neovim/neovim/releases"
+			missing=true
+		fi
+		if ! find "$OFFLINE_DIR" -maxdepth 1 -name "clangd-linux-*.zip" -print -quit 2>/dev/null | grep -q .; then
+			log_error "Missing offline package: clangd-linux-*.zip"
+			log_error "  Download from: https://github.com/clangd/clangd/releases"
+			missing=true
+		fi
+		[ "$missing" = true ] && die "Offline packages missing — add them to ${OFFLINE_DIR} and retry."
+	fi
+
 	log_info "Updating package list..."
 	if sudo apt update; then
 		log_success "Package list updated"
