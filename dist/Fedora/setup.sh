@@ -41,12 +41,16 @@ setup_neovim() {
 		return 1
 	}
 
-	rm -rf "$HOME/.config/nvim/"
-	log_info "Cloning Neovim config from GitHub..."
-	git clone --depth 1 https://github.com/haoyouab/nvim.git "$HOME/.config/nvim" || {
-		log_error "Failed to clone Neovim config repository."
-		return 1
-	}
+	if [ -d "$HOME/.config/nvim/.git" ]; then
+		log_info "Neovim config already cloned, skipping"
+	else
+		rm -rf "$HOME/.config/nvim/"
+		log_info "Cloning Neovim config from GitHub..."
+		git clone --depth 1 https://github.com/haoyouab/nvim.git "$HOME/.config/nvim" || {
+			log_error "Failed to clone Neovim config repository."
+			return 1
+		}
+	fi
 
 	setup_clangd || return 1
 	setup_tree_sitter || return 1
@@ -92,14 +96,21 @@ setup_powerline() {
 	install_package powerline-fonts || return 1
 	install_package python3-pip || return 1
 
-	# Add powerline to bashrc if not present
-	if ! grep -q "powerline-daemon" "$HOME/.bashrc"; then
-		log_info "Adding powerline to ~/.bashrc..."
-		cat "$DIST_ROOT/powerline/bashrc" >>"$HOME/.bashrc"
-		log_success "Powerline added to ~/.bashrc"
+	# Add powerline to bashrc (idempotent: strip old block then re-append)
+	local marker_begin="# >>> reparo-powerline >>>"
+	local marker_end="# <<< reparo-powerline <<<"
+	if grep -q "$marker_begin" "$HOME/.bashrc"; then
+		log_info "Updating powerline block in ~/.bashrc..."
+		sed -i "/$marker_begin/,/$marker_end/d" "$HOME/.bashrc"
 	else
-		log_info "Powerline already configured in ~/.bashrc"
+		log_info "Adding powerline to ~/.bashrc..."
 	fi
+	{
+		echo "$marker_begin"
+		cat "$DIST_ROOT/powerline/bashrc"
+		echo "$marker_end"
+	} >>"$HOME/.bashrc"
+	log_success "Powerline configured in ~/.bashrc"
 
 	# Install powerline-gitstatus
 	log_info "Installing powerline-gitstatus..."
