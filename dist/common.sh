@@ -375,18 +375,25 @@ setup_conform_formatters() {
 			return 1
 		}
 	elif command -v apt &>/dev/null; then
-		# apt版本过旧，通过 go install 获取最新版
-		sudo apt install -y golang-go || {
-			log_error "Failed to install golang."
+		# apt Go version is too old to build shfmt from source; use prebuilt binary
+		local shfmt_ver
+		shfmt_ver=$(curl -fsSL https://api.github.com/repos/mvdan/sh/releases/latest | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/') || {
+			log_error "Failed to fetch shfmt latest version."
 			return 1
 		}
-		go install mvdan.cc/sh/v3/cmd/shfmt@latest || {
-			log_error "Failed to install shfmt via go."
-			return 1
-		}
-		# Link into ~/.local/bin so it's on PATH
+		local arch
+		arch=$(uname -m)
+		case "$arch" in
+			x86_64) arch="amd64" ;;
+			aarch64) arch="arm64" ;;
+		esac
 		mkdir -p "$HOME/.local/bin"
-		ln -sf "$HOME/go/bin/shfmt" "$HOME/.local/bin/shfmt"
+		curl -fsSL "https://github.com/mvdan/sh/releases/download/${shfmt_ver}/shfmt_${shfmt_ver}_linux_${arch}" \
+			-o "$HOME/.local/bin/shfmt" || {
+			log_error "Failed to download shfmt binary."
+			return 1
+		}
+		chmod +x "$HOME/.local/bin/shfmt"
 	fi
 	log_success "shfmt installed"
 
