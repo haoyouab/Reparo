@@ -86,8 +86,12 @@ copy_config() {
 # ─── Helper: pip install with Tsinghua mirror + PEP 668 handling ─────────────
 pip_install() {
 	local pkg=$1
+	local break_flag=""
+	if python3 -m pip install --help 2>&1 | grep -q -- '--break-system-packages'; then
+		break_flag="--break-system-packages"
+	fi
 	python3 -m pip install "$pkg" \
-		--user --break-system-packages \
+		--user $break_flag \
 		-i https://pypi.tuna.tsinghua.edu.cn/simple \
 		--trusted-host pypi.tuna.tsinghua.edu.cn
 }
