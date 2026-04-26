@@ -213,6 +213,29 @@ github_release_url() {
 	echo "$url"
 }
 
+# ─── Helper: cargo install with Tsinghua mirror fallback ─────────────────────
+cargo_install() {
+	if cargo install "$@"; then
+		return 0
+	fi
+	log_warning "cargo install failed, retrying with Tsinghua crates mirror..."
+	local cargo_config_dir="$HOME/.cargo"
+	local cargo_config_file="$cargo_config_dir/config.toml"
+	mkdir -p "$cargo_config_dir"
+	if [ -f "$cargo_config_file" ] && grep -q '\[source\.tuna\]' "$cargo_config_file"; then
+		log_error "Tsinghua mirror already configured but cargo install still failed."
+		return 1
+	fi
+	cat >>"$cargo_config_file" <<-'TOML'
+		[source.crates-io]
+		replace-with = 'tuna'
+		[source.tuna]
+		registry = "sparse+https://mirrors.tuna.tsinghua.edu.cn/crates.io-index/"
+	TOML
+	log_info "Configured Tsinghua crates mirror in $cargo_config_file"
+	cargo install "$@"
+}
+
 # ─── Common Neovim tooling setup (clangd + tree-sitter) ──────────────────────
 setup_clangd() {
 	local clangd_path="$HOME/.local/share/nvim/mason/packages/clangd"
@@ -265,16 +288,6 @@ setup_clangd() {
 setup_tree_sitter() {
 	log_info "Installing tree-sitter via cargo..."
 
-	# Try Tsinghua mirror first, fall back to official if unavailable
-	if curl -sSf --connect-timeout 5 https://mirrors.tuna.tsinghua.edu.cn/rustup/rustup/ >/dev/null 2>&1; then
-		export RUSTUP_UPDATE_ROOT=https://mirrors.tuna.tsinghua.edu.cn/rustup/rustup
-		export RUSTUP_DIST_SERVER=https://mirrors.tuna.tsinghua.edu.cn/rustup
-		log_info "Using Tsinghua Rust mirror"
-	else
-		log_warning "Tsinghua mirror unavailable, using official Rust source"
-		unset RUSTUP_UPDATE_ROOT RUSTUP_DIST_SERVER
-	fi
-
 	# Ensure C compiler is available (required for building Rust crates)
 	if ! command -v cc &>/dev/null; then
 		log_info "C compiler not found — installing gcc..."
@@ -293,10 +306,16 @@ setup_tree_sitter() {
 
 	if ! command -v cargo &>/dev/null; then
 		log_info "Rust toolchain not found — installing..."
-		curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y || {
-			log_error "Failed to install Rust toolchain."
-			return 1
-		}
+		if ! curl --proto '=https' --tlsv1.2 -sSf --connect-timeout 10 https://sh.rustup.rs | sh -s -- -y; then
+			log_warning "Official rustup-init failed, trying Tsinghua mirror..."
+			export RUSTUP_UPDATE_ROOT=https://mirrors.tuna.tsinghua.edu.cn/rustup/rustup
+			export RUSTUP_DIST_SERVER=https://mirrors.tuna.tsinghua.edu.cn/rustup
+			curl --proto '=https' --tlsv1.2 -sSf --connect-timeout 10 \
+				https://mirrors.tuna.tsinghua.edu.cn/rustup/rustup/self/rustup-init.sh | sh -s -- -y || {
+				log_error "Failed to install Rust toolchain."
+				return 1
+			}
+		fi
 		# shellcheck disable=SC1091
 		source "$HOME/.cargo/env"
 	fi
@@ -307,7 +326,7 @@ setup_tree_sitter() {
 		return 1
 	}
 
-	cargo install --locked tree-sitter-cli --version 0.25.10 || {
+	cargo_install --locked tree-sitter-cli --version 0.25.10 || {
 		log_error "Failed to install tree-sitter-cli."
 		return 1
 	}
@@ -416,7 +435,7 @@ setup_conform_formatters() {
 	log_info "Installing ${BOLD}taplo${RST} via cargo..."
 	# shellcheck disable=SC1091
 	[ -f "$HOME/.cargo/env" ] && source "$HOME/.cargo/env"
-	cargo install taplo-cli || {
+	cargo_install taplo-cli || {
 		log_error "Failed to install taplo-cli."
 		return 1
 	}
