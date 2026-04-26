@@ -6,4 +6,4 @@ set print object on
 set print static-members off
 set print vtbl on
 set breakpoint pending on
-set auto-load safe-path /usr/lib/debug:~/Workspace
+set auto-load safe-path /usr/lib/debug:/usr/share/gdb/auto-load:~/Workspace
