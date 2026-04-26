@@ -64,6 +64,24 @@ setup_tmux() {
 	copy_config "$DIST_ROOT/tmux/tmux.conf" "$HOME/.tmux.conf" || return 1
 	copy_config "$DIST_ROOT/tmux/tmux.conf.local" "$HOME/.tmux.conf.local" || return 1
 	copy_config "$DIST_ROOT/tmux/tmux.conf.debug" "$HOME/.tmux.conf.debug" || return 1
+
+	# Install TPM (Tmux Plugin Manager) and plugins
+	local tpm_dir="$HOME/.tmux/plugins/tpm"
+	if [ ! -d "$tpm_dir" ]; then
+		log_info "Installing TPM (Tmux Plugin Manager)..."
+		git clone --depth 1 https://github.com/tmux-plugins/tpm "$tpm_dir" || {
+			log_error "Failed to clone TPM repository."
+			return 1
+		}
+		log_success "TPM installed"
+	else
+		log_info "TPM already installed, skipping"
+	fi
+
+	log_info "Installing tmux plugins..."
+	"$tpm_dir/bin/install_plugins" || true
+	log_success "Tmux plugins installed"
+
 	log_success "Tmux setup completed"
 }
 
