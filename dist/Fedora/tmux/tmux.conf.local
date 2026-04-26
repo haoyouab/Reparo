@@ -295,23 +295,3 @@ bind g source ~/.tmux.conf.debug
 
 # move status line to top
 #set -g status-position top
-
-
-# -- plugins -------------------------------------------------------------------
-
-set -g @plugin 'tmux-plugins/tpm'
-set -g @plugin 'tmux-plugins/tmux-resurrect'
-set -g @plugin 'tmux-plugins/tmux-continuum'
-
-# tmux-resurrect: save and restore tmux sessions
-set -g @resurrect-capture-pane-contents 'on'
-set -g @resurrect-strategy-vim 'session'
-set -g @resurrect-strategy-nvim 'session'
-set -g @resurrect-processes ':all:'
-
-# tmux-continuum: auto-save every 15 minutes and auto-restore on tmux start
-set -g @continuum-save-interval '15'
-set -g @continuum-restore 'on'
-
-# Initialize TPM (keep this line at the very bottom)
-run -b '~/.tmux/plugins/tpm/tpm'
