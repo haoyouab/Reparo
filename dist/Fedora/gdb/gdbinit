@@ -2311,8 +2311,3 @@ python Dashboard.start()
 # mode: python
 # End:
 
-set auto-load safe-path /
-set breakpoint pending on
-b do_init_module
-set serial baud 115200
-set disassemble-next-line on
