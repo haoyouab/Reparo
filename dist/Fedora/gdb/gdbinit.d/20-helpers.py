@@ -80,7 +80,56 @@ class ContainerOfCommand(gdb.Command):
             print("container_of failed: {}".format(e))
 
 
+class EWatchCommand(gdb.Command):
+    """Watch an expression in dashboard: ew <expr>"""
+
+    def __init__(self):
+        super().__init__("ew", gdb.COMMAND_USER, gdb.COMPLETE_EXPRESSION)
+
+    def invoke(self, arg, from_tty):
+        if not arg.strip():
+            print("Usage: ew <expression>")
+            return
+        gdb.execute("dashboard expressions watch " + arg)
+
+
+class EUnwatchCommand(gdb.Command):
+    """Unwatch an expression: eu <expr>"""
+
+    def __init__(self):
+        super().__init__("eu", gdb.COMMAND_USER, gdb.COMPLETE_EXPRESSION)
+
+    def invoke(self, arg, from_tty):
+        if not arg.strip():
+            print("Usage: eu <expression>")
+            return
+        gdb.execute("dashboard expressions unwatch " + arg)
+
+
+class EClearCommand(gdb.Command):
+    """Clear all watched expressions: ec"""
+
+    def __init__(self):
+        super().__init__("ec", gdb.COMMAND_USER)
+
+    def invoke(self, arg, from_tty):
+        gdb.execute("dashboard expressions clear")
+
+
 DmesgCommand()
 LsmodCommand()
 OffsetOfCommand()
 ContainerOfCommand()
+EWatchCommand()
+EUnwatchCommand()
+EClearCommand()
+
+
+def _remove_glib_objfile_printers(event):
+    for obj in gdb.objfiles():
+        obj.pretty_printers[:] = [
+            pp for pp in obj.pretty_printers
+            if getattr(pp, "__module__", "") not in ("glib_gdb", "gobject_gdb")
+        ]
+
+gdb.events.new_objfile.connect(_remove_glib_objfile_printers)

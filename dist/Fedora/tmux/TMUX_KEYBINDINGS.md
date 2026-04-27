@@ -140,16 +140,25 @@
 加载 `~/.tmux.conf.debug` 后创建多窗格调试布局，用于 GDB dashboard 输出到独立窗格：
 
 ```
-┌──────────────┬──────────┬──────────┐
-│              │ Stack    │Expressions│
-│   Source     ├──────────┤          │
-│              │Variables │          │
-├──────────────┤──────────┼──────────┤
-│   Console    │Registers │ Assembly │
-│              │          ├──────────┤
-│              │ Threads  │          │
-└──────────────┴──────────┴──────────┘
++--------+------+------------+
+|  Stack 25%    |            |
++--------+------+ Source 65% |
+|        |      |            |
+| Vars   | Exp  +------------+
+|  60%   | 40%  | GDB Input  |
+|  55%h  |      |    35%     |
++--------+------+            |
+| Asm   20%     |            |
++---------------+------------+
+      50%            50%
 ```
+
+窗格编号：1=Stack, 2=Variables, 3=Assembly, 4=Expressions, 5=Source, 6=GDB Input
+
+使用方式：按 `<prefix>` + `g` 后，在 GDB Input 窗格中运行 `gdb ./program` 或 `sgdb qemu-system-x86_64`。
+
+Watch 变量快捷命令：`ew <expr>` 添加监视，`eu <expr>` 移除，`ec` 清空全部。
+Variables 和 Stack 模块支持翻页：`dashboard variables scroll 10` / `dashboard stack scroll 5`（负数向上）。
 
 ## 配置选项参考
 

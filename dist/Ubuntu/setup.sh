@@ -204,6 +204,9 @@ setup_gdb() {
 
 	copy_config "$DIST_ROOT/gdb/gdbinit" "$HOME/.gdbinit" || return 1
 	mkdir -p "$HOME/.gdbinit.d"
+	for f in "$DIST_ROOT"/gdb/gdbinit.d/*.{py,gdb}; do
+		copy_config "$f" "$HOME/.gdbinit.d/$(basename "$f")" || return 1
+	done
 	log_success "GDB setup completed"
 }
 
