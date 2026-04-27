@@ -63,26 +63,30 @@ setup_neovim() {
 	fi
 
 	# Download neovim from GitHub latest release (arch-aware)
-	local arch
-	arch=$(detect_arch) || return 1
-	log_info "Detected architecture: ${BOLD}${arch}${RST}"
-
-	local filepath
-	if [ -n "$OFFLINE_DIR" ]; then
-		filepath=$(find_offline_package "nvim-linux-${arch}*.tar.gz" "nvim-linux-${arch}.tar.gz (from https://github.com/neovim/neovim/releases)") || return 1
+	if command -v nvim &>/dev/null; then
+		log_info "Neovim already installed ($(nvim --version | head -1)), skipping download"
 	else
-		local nvim_pattern="nvim-linux-${arch}.*\\.tar\\.gz"
-		local download_url
-		download_url=$(github_release_url "neovim/neovim" "$nvim_pattern") || return 1
-		filepath=$(download_file "$download_url") || return 1
-	fi
+		local arch
+		arch=$(detect_arch) || return 1
+		log_info "Detected architecture: ${BOLD}${arch}${RST}"
 
-	mkdir -p "$HOME/.local"
-	log_info "Extracting Neovim to ~/.local..."
-	tar -xzf "$filepath" -C "$HOME/.local" --strip-components=1 || {
-		log_error "Failed to extract Neovim archive."
-		return 1
-	}
+		local filepath
+		if [ -n "$OFFLINE_DIR" ]; then
+			filepath=$(find_offline_package "nvim-linux-${arch}*.tar.gz" "nvim-linux-${arch}.tar.gz (from https://github.com/neovim/neovim/releases)") || return 1
+		else
+			local nvim_pattern="nvim-linux-${arch}.*\\.tar\\.gz"
+			local download_url
+			download_url=$(github_release_url "neovim/neovim" "$nvim_pattern") || return 1
+			filepath=$(download_file "$download_url") || return 1
+		fi
+
+		mkdir -p "$HOME/.local"
+		log_info "Extracting Neovim to ~/.local..."
+		tar -xzf "$filepath" -C "$HOME/.local" --strip-components=1 || {
+			log_error "Failed to extract Neovim archive."
+			return 1
+		}
+	fi
 
 	setup_clangd || return 1
 	setup_tree_sitter || return 1

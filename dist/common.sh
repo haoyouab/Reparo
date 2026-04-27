@@ -239,6 +239,13 @@ cargo_install() {
 # ─── Common Neovim tooling setup (clangd + tree-sitter) ──────────────────────
 setup_clangd() {
 	local clangd_path="$HOME/.local/share/nvim/mason/packages/clangd"
+
+	# Skip if clangd is already installed
+	if [ -x "$HOME/.local/share/nvim/mason/bin/clangd" ]; then
+		log_info "clangd already installed, skipping"
+		return 0
+	fi
+
 	mkdir -p "$clangd_path" || {
 		log_error "Failed to create $clangd_path"
 		return 1
@@ -337,6 +344,31 @@ setup_tree_sitter() {
 	log_success "tree-sitter symlink created"
 }
 
+# ─── Helper: install Node.js 22 on Ubuntu/apt ────────────────────────────────
+_install_node_apt() {
+	# apt ships Node.js 18 which is too old for Copilot (requires ≥22)
+	# Download Node.js 22 binary from npmmirror (accessible in mainland China)
+	log_info "Fetching Node.js 22 latest version from npmmirror..."
+	local node_version
+	node_version=$(curl -fsSL https://npmmirror.com/mirrors/node/latest-v22.x/SHASUMS256.txt 2>/dev/null \
+		| grep "node-v.*-linux-x64.tar.xz" | head -1 \
+		| grep -oP 'node-v[0-9]+\.[0-9]+\.[0-9]+') || {
+		log_error "Failed to fetch Node.js version info."
+		return 1
+	}
+	local node_url="https://npmmirror.com/mirrors/node/latest-v22.x/${node_version}-linux-x64.tar.xz"
+	log_info "Downloading ${BOLD}${node_version}${RST} from npmmirror..."
+	local node_archive
+	node_archive=$(download_file "$node_url") || {
+		log_error "Failed to download Node.js."
+		return 1
+	}
+	sudo tar -xJf "$node_archive" -C /usr/local --strip-components=1 || {
+		log_error "Failed to extract Node.js."
+		return 1
+	}
+}
+
 # ─── Setup: Conform.nvim formatters ──────────────────────────────────────────
 # Installs: prettier, black, shfmt, clang-format, taplo, rustfmt (nightly)
 setup_conform_formatters() {
@@ -350,27 +382,19 @@ setup_conform_formatters() {
 			return 1
 		}
 	elif command -v apt &>/dev/null; then
-		# apt ships Node.js 18 which is too old for Copilot (requires ≥22)
-		# Download Node.js 22 binary from npmmirror (accessible in mainland China)
-		log_info "Fetching Node.js 22 latest version from npmmirror..."
-		local node_version
-		node_version=$(curl -fsSL https://npmmirror.com/mirrors/node/latest-v22.x/SHASUMS256.txt 2>/dev/null \
-			| grep "node-v.*-linux-x64.tar.xz" | head -1 \
-			| grep -oP 'node-v[0-9]+\.[0-9]+\.[0-9]+') || {
-			log_error "Failed to fetch Node.js version info."
-			return 1
-		}
-		local node_url="https://npmmirror.com/mirrors/node/latest-v22.x/${node_version}-linux-x64.tar.xz"
-		log_info "Downloading ${BOLD}${node_version}${RST} from npmmirror..."
-		local node_archive
-		node_archive=$(download_file "$node_url") || {
-			log_error "Failed to download Node.js."
-			return 1
-		}
-		sudo tar -xJf "$node_archive" -C /usr/local --strip-components=1 || {
-			log_error "Failed to extract Node.js."
-			return 1
-		}
+		# Skip download if Node.js >= 22 is already installed
+		if command -v node &>/dev/null; then
+			local node_major
+			node_major=$(node --version | grep -oP '\d+' | head -1)
+			if [ "$node_major" -ge 22 ] 2>/dev/null; then
+				log_info "Node.js $(node --version) already installed, skipping"
+			else
+				log_info "Node.js $(node --version) found but too old (need >= 22), upgrading..."
+				_install_node_apt
+			fi
+		else
+			_install_node_apt
+		fi
 	fi
 	sudo npm install -g prettier || {
 		log_error "Failed to install prettier."
@@ -394,25 +418,29 @@ setup_conform_formatters() {
 			return 1
 		}
 	elif command -v apt &>/dev/null; then
-		# apt Go version is too old to build shfmt from source; use prebuilt binary
-		local shfmt_ver
-		shfmt_ver=$(curl -fsSL https://api.github.com/repos/mvdan/sh/releases/latest | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/') || {
-			log_error "Failed to fetch shfmt latest version."
-			return 1
-		}
-		local arch
-		arch=$(uname -m)
-		case "$arch" in
-			x86_64) arch="amd64" ;;
-			aarch64) arch="arm64" ;;
-		esac
-		mkdir -p "$HOME/.local/bin"
-		curl -fsSL "https://github.com/mvdan/sh/releases/download/${shfmt_ver}/shfmt_${shfmt_ver}_linux_${arch}" \
-			-o "$HOME/.local/bin/shfmt" || {
-			log_error "Failed to download shfmt binary."
-			return 1
-		}
-		chmod +x "$HOME/.local/bin/shfmt"
+		if command -v shfmt &>/dev/null; then
+			log_info "shfmt already installed, skipping"
+		else
+			# apt Go version is too old to build shfmt from source; use prebuilt binary
+			local shfmt_ver
+			shfmt_ver=$(curl -fsSL https://api.github.com/repos/mvdan/sh/releases/latest | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/') || {
+				log_error "Failed to fetch shfmt latest version."
+				return 1
+			}
+			local arch
+			arch=$(uname -m)
+			case "$arch" in
+				x86_64) arch="amd64" ;;
+				aarch64) arch="arm64" ;;
+			esac
+			mkdir -p "$HOME/.local/bin"
+			curl -fsSL "https://github.com/mvdan/sh/releases/download/${shfmt_ver}/shfmt_${shfmt_ver}_linux_${arch}" \
+				-o "$HOME/.local/bin/shfmt" || {
+				log_error "Failed to download shfmt binary."
+				return 1
+			}
+			chmod +x "$HOME/.local/bin/shfmt"
+		fi
 	fi
 	log_success "shfmt installed"
 
