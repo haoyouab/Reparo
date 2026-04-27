@@ -42,7 +42,8 @@ setup_neovim() {
 	}
 
 	if [ -d "$HOME/.config/nvim/.git" ]; then
-		log_info "Neovim config already cloned, skipping"
+		log_info "Neovim config already cloned, pulling latest changes..."
+		git -C "$HOME/.config/nvim" pull || log_warning "Failed to pull nvim config updates"
 	else
 		rm -rf "$HOME/.config/nvim/"
 		log_info "Cloning Neovim config from GitHub..."
