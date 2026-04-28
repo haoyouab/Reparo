@@ -83,13 +83,17 @@ copy_config() {
 	fi
 }
 
-# ─── Helper: pip install with Tsinghua mirror + PEP 668 handling ─────────────
+# ─── Helper: pip install with PEP 668 handling, fallback to Tsinghua mirror ──
 pip_install() {
 	local pkg=$1
 	local break_flag=""
 	if python3 -m pip install --help 2>&1 | grep -q -- '--break-system-packages'; then
 		break_flag="--break-system-packages"
 	fi
+	if python3 -m pip install "$pkg" --user $break_flag; then
+		return 0
+	fi
+	log_warning "Official PyPI failed for '$pkg', retrying with Tsinghua mirror..."
 	python3 -m pip install "$pkg" \
 		--user $break_flag \
 		-i https://pypi.tuna.tsinghua.edu.cn/simple \
