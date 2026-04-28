@@ -10,7 +10,7 @@ alias tmux='tmux -2'
 alias ta='tmux attach || tmux'
 alias mutt='mutt'
 alias vim='nvim'
-export EDITOR='/usr/bin/vim'
+export EDITOR="$HOME/.local/bin/nvim"
 
 export RUSTUP_UPDATE_ROOT=https://mirrors.tuna.tsinghua.edu.cn/rustup/rustup
 export RUSTUP_DIST_SERVER=https://mirrors.tuna.tsinghua.edu.cn/rustup

@@ -11,7 +11,7 @@ alias ta='tmux attach || tmux'
 alias mutt='mutt'
 alias vim='nvim'
 alias sgdb='sudo --preserve-env=HOME gdb'
-export EDITOR='/usr/bin/vim'
+export EDITOR='/usr/bin/nvim'
 
 PYTHON_VERSION=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
 export PYTHONPATH="$PYTHONPATH:$HOME/.local/lib/python$PYTHON_VERSION/site-packages"
