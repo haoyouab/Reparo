@@ -54,6 +54,7 @@ setup_neovim() {
 	fi
 
 	setup_clangd || return 1
+	setup_cpptools || return 1
 	setup_tree_sitter || return 1
 	setup_conform_formatters || return 1
 
@@ -212,10 +213,21 @@ main() {
 
 	# ─── Offline pre-flight check ──────────────────────────────────────────
 	if [ -n "${OFFLINE_DIR:-}" ] && [ "$SKIP_NEOVIM" = false ]; then
-		local missing=false
+		local arch missing=false
+		arch=$(detect_arch) || die "Cannot detect architecture."
+		local vsix_arch
+		case "$arch" in
+			x86_64) vsix_arch="x64" ;;
+			aarch64) vsix_arch="arm64" ;;
+		esac
 		if ! find "$OFFLINE_DIR" -maxdepth 1 -name "clangd-linux-*.zip" -print -quit 2>/dev/null | grep -q .; then
 			log_error "Missing offline package: clangd-linux-*.zip"
 			log_error "  Download from: https://github.com/clangd/clangd/releases"
+			missing=true
+		fi
+		if ! find "$OFFLINE_DIR" -maxdepth 1 -name "cpptools-linux-${vsix_arch}.vsix" -print -quit 2>/dev/null | grep -q .; then
+			log_error "Missing offline package: cpptools-linux-${vsix_arch}.vsix"
+			log_error "  Download from: https://github.com/microsoft/vscode-cpptools/releases"
 			missing=true
 		fi
 		[ "$missing" = true ] && die "Offline packages missing — add them to ${OFFLINE_DIR} and retry."

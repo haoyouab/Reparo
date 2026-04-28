@@ -292,6 +292,49 @@ setup_clangd() {
 	log_success "clangd installed and linked"
 }
 
+setup_cpptools() {
+	local cpptools_path="$HOME/.local/share/nvim/mason/packages/cpptools"
+
+	if [ -x "$cpptools_path/extension/debugAdapters/bin/OpenDebugAD7" ]; then
+		log_info "cpptools already installed, skipping"
+		return 0
+	fi
+
+	local arch
+	arch=$(detect_arch) || return 1
+	local vsix_arch
+	case "$arch" in
+		x86_64) vsix_arch="x64" ;;
+		aarch64) vsix_arch="arm64" ;;
+	esac
+
+	local filepath
+	if [ -n "$OFFLINE_DIR" ]; then
+		filepath=$(find_offline_package "cpptools-linux-${vsix_arch}.vsix" "cpptools-linux-${vsix_arch}.vsix (from https://github.com/microsoft/vscode-cpptools/releases)") || return 1
+	else
+		local download_url
+		download_url=$(github_release_url "microsoft/vscode-cpptools" "cpptools-linux-${vsix_arch}\\.vsix") || return 1
+		filepath=$(download_file "$download_url") || return 1
+	fi
+
+	mkdir -p "$cpptools_path" || {
+		log_error "Failed to create $cpptools_path"
+		return 1
+	}
+
+	log_info "Extracting cpptools (.vsix)..."
+	unzip -o "$filepath" -d "$cpptools_path" || {
+		log_error "Failed to extract cpptools vsix"
+		return 1
+	}
+
+	chmod +x "$cpptools_path/extension/debugAdapters/bin/OpenDebugAD7" 2>/dev/null
+	chmod +x "$cpptools_path/extension/debugAdapters/bin/cpptools" 2>/dev/null
+	chmod +x "$cpptools_path/extension/debugAdapters/bin/cpptools-srv" 2>/dev/null
+
+	log_success "cpptools installed (DAP adapter: OpenDebugAD7)"
+}
+
 setup_tree_sitter() {
 	log_info "Installing tree-sitter via cargo..."
 
