@@ -333,10 +333,14 @@ setup_cpptools() {
 	}
 
 	chmod +x "$cpptools_path/extension/debugAdapters/bin/OpenDebugAD7" 2>/dev/null
-	chmod +x "$cpptools_path/extension/debugAdapters/bin/cpptools" 2>/dev/null
-	chmod +x "$cpptools_path/extension/debugAdapters/bin/cpptools-srv" 2>/dev/null
 
-	log_success "cpptools installed (DAP adapter: OpenDebugAD7)"
+	mkdir -p "$HOME/.local/share/nvim/mason/bin" || {
+		log_error "Failed to create mason bin directory."
+		return 1
+	}
+	ln -sf "$cpptools_path/extension/debugAdapters/bin/OpenDebugAD7" "$HOME/.local/share/nvim/mason/bin/OpenDebugAD7"
+
+	log_success "cpptools installed and linked (DAP adapter: OpenDebugAD7)"
 }
 
 setup_marksman() {
