@@ -49,8 +49,9 @@ The offline directory should contain the following files (downloaded from GitHub
 | `nvim-linux-x86_64.tar.gz` | [neovim/neovim](https://github.com/neovim/neovim/releases) | Neovim binary (Ubuntu only; use the aarch64 variant for ARM architectures) |
 | `clangd-linux-*.zip` | [clangd/clangd](https://github.com/clangd/clangd/releases) | clangd language server |
 | `cpptools-linux-x64.vsix` | [microsoft/vscode-cpptools](https://github.com/microsoft/vscode-cpptools/releases) | C/C++ DAP debug adapter (use arm64 variant for ARM architectures) |
+| `marksman-linux-x64` | [artempyanykh/marksman](https://github.com/artempyanykh/marksman/releases) | Markdown language server (use arm64 variant for ARM architectures) |
 
-> Fedora installs Neovim via `dnf`, so only the clangd and cpptools packages are needed.
+> Fedora installs Neovim via `dnf`, so only the clangd, cpptools, and marksman packages are needed.
 
 ## 🐳 Docker Dev Environment
 

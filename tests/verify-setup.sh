@@ -96,6 +96,7 @@ if [ "${SKIP_NEOVIM:-false}" != "true" ]; then
 	check_symlink "$HOME/.local/share/nvim/mason/bin/clangd"
 	check_symlink "$HOME/.local/share/nvim/mason/bin/tree-sitter"
 	check_file "$HOME/.local/share/nvim/mason/packages/cpptools/extension/debugAdapters/bin/OpenDebugAD7"
+	check_symlink "$HOME/.local/share/nvim/mason/bin/marksman"
 else
 	echo ""
 	echo -e "  ${YELLOW}⏭️  Skipping Neovim checks (SKIP_NEOVIM=true)${RST}"

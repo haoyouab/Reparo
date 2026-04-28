@@ -335,6 +335,50 @@ setup_cpptools() {
 	log_success "cpptools installed (DAP adapter: OpenDebugAD7)"
 }
 
+setup_marksman() {
+	local marksman_path="$HOME/.local/share/nvim/mason/packages/marksman"
+
+	if [ -x "$HOME/.local/share/nvim/mason/bin/marksman" ]; then
+		log_info "marksman already installed, skipping"
+		return 0
+	fi
+
+	local arch
+	arch=$(detect_arch) || return 1
+	local bin_arch
+	case "$arch" in
+		x86_64) bin_arch="x64" ;;
+		aarch64) bin_arch="arm64" ;;
+	esac
+	local bin_name="marksman-linux-${bin_arch}"
+
+	local filepath
+	if [ -n "$OFFLINE_DIR" ]; then
+		filepath=$(find_offline_package "$bin_name" "$bin_name (from https://github.com/artempyanykh/marksman/releases)") || return 1
+	else
+		local download_url
+		download_url=$(github_release_url "artempyanykh/marksman" "${bin_name}") || return 1
+		filepath=$(download_file "$download_url") || return 1
+	fi
+
+	mkdir -p "$marksman_path" || {
+		log_error "Failed to create $marksman_path"
+		return 1
+	}
+	mkdir -p "$HOME/.local/share/nvim/mason/bin" || {
+		log_error "Failed to create mason bin directory."
+		return 1
+	}
+
+	cp "$filepath" "$marksman_path/$bin_name" || {
+		log_error "Failed to copy marksman binary"
+		return 1
+	}
+	chmod +x "$marksman_path/$bin_name"
+	ln -sf "$marksman_path/$bin_name" "$HOME/.local/share/nvim/mason/bin/marksman"
+	log_success "marksman installed and linked"
+}
+
 setup_tree_sitter() {
 	log_info "Installing tree-sitter via cargo..."
 

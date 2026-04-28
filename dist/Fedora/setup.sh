@@ -55,6 +55,7 @@ setup_neovim() {
 
 	setup_clangd || return 1
 	setup_cpptools || return 1
+	setup_marksman || return 1
 	setup_tree_sitter || return 1
 	setup_conform_formatters || return 1
 
@@ -228,6 +229,11 @@ main() {
 		if ! find "$OFFLINE_DIR" -maxdepth 1 -name "cpptools-linux-${vsix_arch}.vsix" -print -quit 2>/dev/null | grep -q .; then
 			log_error "Missing offline package: cpptools-linux-${vsix_arch}.vsix"
 			log_error "  Download from: https://github.com/microsoft/vscode-cpptools/releases"
+			missing=true
+		fi
+		if ! find "$OFFLINE_DIR" -maxdepth 1 -name "marksman-linux-${vsix_arch}" -print -quit 2>/dev/null | grep -q .; then
+			log_error "Missing offline package: marksman-linux-${vsix_arch}"
+			log_error "  Download from: https://github.com/artempyanykh/marksman/releases"
 			missing=true
 		fi
 		[ "$missing" = true ] && die "Offline packages missing — add them to ${OFFLINE_DIR} and retry."
