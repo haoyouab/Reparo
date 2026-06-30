@@ -58,12 +58,15 @@ RUN touch /root/.bashrc
 # GITHUB_TOKEN: pass a GitHub personal access token to avoid API rate limits
 #   docker build --build-arg GITHUB_TOKEN=ghp_xxx ...
 ARG SKIP_NEOVIM=false
+ARG CHINA_MIRRORS=false
 ARG GITHUB_TOKEN=
 ARG OFFLINE_ARGS=
 ENV GITHUB_TOKEN=${GITHUB_TOKEN}
+ENV CHINA_MIRRORS=${CHINA_MIRRORS}
 RUN bash -c '\
   args=""; \
   [ "$SKIP_NEOVIM" = "true" ] && args="--skip-neovim"; \
+  [ "$CHINA_MIRRORS" = "true" ] && args="$args --china"; \
   [ -n "$OFFLINE_ARGS" ] && args="$args $OFFLINE_ARGS"; \
   bash setup $args'
 # Clear token from final image (do NOT leak secrets into image layers)

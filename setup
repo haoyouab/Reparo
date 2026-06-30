@@ -59,6 +59,7 @@ main() {
 				echo "                                      cpptools-linux-<x64|arm64>.vsix,"
 				echo "                                      marksman-linux-<x64|arm64>"
 				echo "                            (<arch> = x86_64 or aarch64)"
+				echo "  --china                   Use rsproxy.cn mirror for Rust (crates.io + rustup)"
 				echo "  --docker                  Build a Docker dev environment instead of local setup"
 				echo "  --fedora                  Docker: use Fedora base image (default)"
 				echo "  --ubuntu                  Docker: use Ubuntu base image"
@@ -73,6 +74,7 @@ main() {
 				echo "  bash setup --docker --ubuntu            # Docker dev env (Ubuntu)"
 				echo "  bash setup --docker --skip-neovim       # Docker, skip Neovim"
 				echo "  bash setup --docker --offline=/path/to/packages  # Docker, offline mode"
+				echo "  bash setup --china                      # Use rsproxy.cn Rust mirror"
 				return 0
 				;;
 			--docker)
@@ -89,6 +91,10 @@ main() {
 				DOCKER_ARGS+=("$_a")
 				;;
 			--neovim | --skip-neovim)
+				FORWARD_ARGS+=("$_a")
+				DOCKER_ARGS+=("$_a")
+				;;
+			--china)
 				FORWARD_ARGS+=("$_a")
 				DOCKER_ARGS+=("$_a")
 				;;

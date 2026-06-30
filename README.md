@@ -34,6 +34,16 @@ Skip Neovim (saves time, no Rust/cargo installation):
 bash setup --skip-neovim
 ```
 
+### 🇨🇳 China Mirror (Rust)
+
+By default, the Rust toolchain (rustup) and crates.io registry use their official upstream sources. If you are in a network with poor access to the official Rust sources (e.g. mainland China), pass `--china` to use the [rsproxy.cn](https://rsproxy.cn) mirror for both rustup and crates.io, and persist the rustup mirror config in `~/.bashrc`:
+
+```bash
+bash setup --china
+```
+
+This option is off by default and only affects Rust — `--china` controls rustup/crates.io mirroring and can be combined with any other option (e.g. `bash setup --docker --china`).
+
 ### 📦 Offline Mode
 
 If your network cannot reliably access GitHub (e.g. slow curl downloads), you can pre-download the required packages and use the `--offline` option to skip network downloads:
@@ -70,6 +80,9 @@ bash setup --docker --skip-neovim
 # Build with offline packages (avoid downloading inside the container)
 bash setup --docker --offline=/path/to/packages
 bash setup --docker --ubuntu --offline=/path/to/packages
+
+# Use rsproxy.cn Rust mirror (mainland China)
+bash setup --docker --china
 ```
 
 > The container user's name and UID automatically match the host user, so volume mounts have no permission issues.
@@ -144,6 +157,7 @@ Reparo/
 - 📦 **Auto Backup** — Automatically backs up existing configs to `~/.config-backup-<timestamp>/` before overwriting
 - 🏗️ **Architecture Aware** — Auto-detects x86_64 / aarch64 and downloads the matching binaries
 - 📦 **Offline Mode** — `--offline=DIR` supports offline installation without GitHub access
+- 🇨🇳 **China Mirror** — `--china` routes Rust (rustup + crates.io) through rsproxy.cn
 - 🔄 **Shared Function Library** — `dist/common.sh` eliminates code duplication
 - 🐳 **Docker Dev Environment** — One-command build for a ready-to-use containerized dev environment
 - 🐳 **Docker Testing** — Full containerized integration tests

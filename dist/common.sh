@@ -217,26 +217,53 @@ github_release_url() {
 	echo "$url"
 }
 
-# ─── Helper: cargo install with Tsinghua mirror fallback ─────────────────────
+# ─── Helper: persist rsproxy rustup mirror env into ~/.bashrc (under --china) ─
+# Idempotent: replaces any existing rustup-mirror block.
+setup_rust_mirror_env() {
+	if [ "${CHINA_MIRRORS:-}" != "true" ]; then
+		return 0
+	fi
+	local target="$HOME/.bashrc"
+	local marker_begin="# >>> reparo-rust-mirror >>>"
+	local marker_end="# <<< reparo-rust-mirror <<<"
+	touch "$target"
+	if grep -q "$marker_begin" "$target"; then
+		sed -i "/$marker_begin/,/$marker_end/d" "$target"
+	fi
+	{
+		echo "$marker_begin"
+		echo "export RUSTUP_UPDATE_ROOT=https://rsproxy.cn/rustup/rustup"
+		echo "export RUSTUP_DIST_SERVER=https://rsproxy.cn/rustup"
+		echo "$marker_end"
+	} >>"$target"
+	log_info "Configured rsproxy rustup mirror in $target"
+}
+
+# ─── Helper: cargo install (with rsproxy mirror fallback under --china) ───────
 cargo_install() {
 	if cargo install "$@"; then
 		return 0
 	fi
-	log_warning "cargo install failed, retrying with Tsinghua crates mirror..."
+	# Without --china, no mirror fallback configured
+	if [ "${CHINA_MIRRORS:-}" != "true" ]; then
+		log_error "cargo install failed."
+		return 1
+	fi
+	log_warning "cargo install failed, retrying with rsproxy crates mirror..."
 	local cargo_config_dir="$HOME/.cargo"
 	local cargo_config_file="$cargo_config_dir/config.toml"
 	mkdir -p "$cargo_config_dir"
-	if [ -f "$cargo_config_file" ] && grep -q '\[source\.tuna\]' "$cargo_config_file"; then
-		log_error "Tsinghua mirror already configured but cargo install still failed."
+	if [ -f "$cargo_config_file" ] && grep -q '\[source\.rsproxy-sparse\]' "$cargo_config_file"; then
+		log_error "rsproxy mirror already configured but cargo install still failed."
 		return 1
 	fi
 	cat >>"$cargo_config_file" <<-'TOML'
 		[source.crates-io]
-		replace-with = 'tuna'
-		[source.tuna]
-		registry = "sparse+https://mirrors.tuna.tsinghua.edu.cn/crates.io-index/"
+		replace-with = 'rsproxy-sparse'
+		[source.rsproxy-sparse]
+		registry = "sparse+https://rsproxy.cn/index/"
 	TOML
-	log_info "Configured Tsinghua crates mirror in $cargo_config_file"
+	log_info "Configured rsproxy crates mirror in $cargo_config_file"
 	cargo install "$@"
 }
 
@@ -408,18 +435,25 @@ setup_tree_sitter() {
 
 	if ! command -v cargo &>/dev/null; then
 		log_info "Rust toolchain not found — installing..."
-		if ! curl --proto '=https' --tlsv1.2 -sSf --connect-timeout 10 https://sh.rustup.rs | sh -s -- -y; then
-			log_warning "Official rustup-init failed, trying Tsinghua mirror..."
-			export RUSTUP_UPDATE_ROOT=https://mirrors.tuna.tsinghua.edu.cn/rustup/rustup
-			export RUSTUP_DIST_SERVER=https://mirrors.tuna.tsinghua.edu.cn/rustup
-			curl --proto '=https' --tlsv1.2 -sSf --connect-timeout 10 \
-				https://mirrors.tuna.tsinghua.edu.cn/rustup/rustup/self/rustup-init.sh | sh -s -- -y || {
+		if [ "${CHINA_MIRRORS:-}" = "true" ]; then
+			export RUSTUP_UPDATE_ROOT=https://rsproxy.cn/rustup/rustup
+			export RUSTUP_DIST_SERVER=https://rsproxy.cn/rustup
+			if ! curl --proto '=https' --tlsv1.2 -sSf --connect-timeout 10 \
+				https://rsproxy.cn/rustup-init.sh | sh -s -- -y; then
 				log_error "Failed to install Rust toolchain."
 				return 1
-			}
+			fi
+		else
+			if ! curl --proto '=https' --tlsv1.2 -sSf --connect-timeout 10 \
+				https://sh.rustup.rs | sh -s -- -y; then
+				log_error "Failed to install Rust toolchain."
+				return 1
+			fi
 		fi
 		# shellcheck disable=SC1091
 		source "$HOME/.cargo/env"
+		# Persist rustup mirror env so later `rustup update` uses rsproxy (under --china)
+		setup_rust_mirror_env
 	fi
 
 	log_info "Updating Rust to latest version..."

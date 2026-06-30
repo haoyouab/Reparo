@@ -33,6 +33,7 @@ log_error() { echo -e "  ${RED}❌ ${RST}$1"; }
 # ─── Parse arguments ────────────────────────────────────────────────────────
 DISTRO="fedora"
 SKIP_NEOVIM=false
+CHINA_MIRRORS=false
 GITHUB_TOKEN="${GITHUB_TOKEN:-}"
 OFFLINE_SRC_DIR=""
 
@@ -41,6 +42,7 @@ for arg in "$@"; do
 		--fedora) DISTRO="fedora" ;;
 		--ubuntu) DISTRO="ubuntu" ;;
 		--skip-neovim) SKIP_NEOVIM=true ;;
+		--china) CHINA_MIRRORS=true ;;
 		--github-token=*)
 			GITHUB_TOKEN="${arg#--github-token=}"
 			;;
@@ -55,6 +57,7 @@ for arg in "$@"; do
 			echo "  --fedora              Use Fedora base image (default)"
 			echo "  --ubuntu              Use Ubuntu base image"
 			echo "  --skip-neovim         Skip Neovim setup (faster, no Rust/cargo)"
+			echo "  --china               Use rsproxy.cn mirror for Rust (crates.io + rustup)"
 			echo "  --offline=DIR         Use offline packages from DIR (skip GitHub downloads)"
 			echo "  --help, -h            Show this help message"
 			echo ""
@@ -98,6 +101,9 @@ BUILD_ARGS=(
 )
 if [ "$SKIP_NEOVIM" = true ]; then
 	BUILD_ARGS+=(--build-arg "SKIP_NEOVIM=true")
+fi
+if [ "${CHINA_MIRRORS:-}" = true ]; then
+	BUILD_ARGS+=(--build-arg "CHINA_MIRRORS=true")
 fi
 if [ -n "$GITHUB_TOKEN" ]; then
 	BUILD_ARGS+=(--build-arg "GITHUB_TOKEN=${GITHUB_TOKEN}")

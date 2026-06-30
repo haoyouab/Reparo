@@ -228,6 +228,7 @@ main() {
 				return 0
 				;;
 			--skip-neovim) SKIP_NEOVIM=true ;;
+			--china) export CHINA_MIRRORS=true ;;
 			--offline=*)
 				export OFFLINE_DIR="${_arg#--offline=}"
 				if [ ! -d "$OFFLINE_DIR" ]; then
