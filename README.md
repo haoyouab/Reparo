@@ -140,7 +140,7 @@ Reparo/
 │   ├── Dockerfile.fedora    # Fedora dev environment image
 │   └── Dockerfile.ubuntu    # Ubuntu dev environment image
 ├── tests/
-│   ├── run_tests.sh         # Unit tests (91 test cases)
+│   ├── run_tests.sh         # Unit tests (95 test cases)
 │   ├── docker-test.sh       # Docker integration test runner
 │   ├── verify-setup.sh      # Post-install verification script
 │   ├── Dockerfile.fedora    # Fedora test container

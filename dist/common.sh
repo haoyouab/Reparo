@@ -172,6 +172,37 @@ download_file() {
 	fi
 }
 
+# ─── Resolve a release asset URL via github.com HTML (no API rate limit) ─────
+# Usage: github_release_url_html <owner/repo> <asset-name ERE>
+github_release_url_html() {
+	local repo=$1
+	local pattern=$2
+	local latest tag
+	latest=$(curl -fsSLI -o /dev/null -w '%{url_effective}' "https://github.com/${repo}/releases/latest") || {
+		log_error "Failed to resolve latest release tag for ${repo}" >&2
+		return 1
+	}
+	tag=${latest##*/}
+	if [ -z "$tag" ] || [ "$tag" = "latest" ] || [ "$tag" = "releases" ]; then
+		log_error "Failed to resolve latest release tag for ${repo}" >&2
+		return 1
+	fi
+
+	local path name
+	while read -r path; do
+		name=${path##*/}
+		if echo "$name" | grep -qE -- "$pattern"; then
+			echo "https://github.com${path}"
+			return 0
+		fi
+	done < <(curl -fsSL "https://github.com/${repo}/releases/expanded_assets/${tag}" \
+		| grep -oE "href=\"/${repo}/releases/download/[^\"]+\"" \
+		| sed -E 's/^href="//; s/"$//')
+
+	log_error "Failed to find download URL for ${repo} (pattern: ${pattern})" >&2
+	return 1
+}
+
 # ─── Helper: query GitHub release API with jq ────────────────────────────────
 github_release_url() {
 	local repo=$1
@@ -194,8 +225,12 @@ github_release_url() {
 	# Check for API errors (rate limit, not found, etc.)
 	local api_msg
 	api_msg=$(echo "$json" | jq -r '.message // empty' 2>/dev/null)
-	if [ -n "$api_msg" ]; then
-		log_error "GitHub API error: ${api_msg}" >&2
+	if [ -n "$api_msg" ] || [ -z "$json" ]; then
+		log_warning "GitHub API error: ${api_msg:-no response}" >&2
+		log_info "Falling back to github.com release page (not API rate-limited)..." >&2
+		if github_release_url_html "$repo" "$pattern"; then
+			return 0
+		fi
 		if [ -z "${GITHUB_TOKEN:-}" ]; then
 			log_error "Tip: set GITHUB_TOKEN to avoid rate limits (export GITHUB_TOKEN=ghp_xxx)" >&2
 		fi

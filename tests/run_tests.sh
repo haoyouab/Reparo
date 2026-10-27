@@ -704,6 +704,45 @@ test_code_quality() {
 }
 
 # ═════════════════════════════════════════════════════════════════════════════
+#  TEST GROUP 18: common.sh — github_release_url() HTML fallback
+# ═════════════════════════════════════════════════════════════════════════════
+test_github_release_fallback() {
+	print_header "🐙  Test Group 18: github_release_url() — Rate Limit Fallback"
+
+	# Mock curl: API is rate-limited, github.com redirect + asset page work
+	local mock_curl='
+		curl() {
+			case "$*" in
+				*api.github.com*) echo "{\"message\": \"API rate limit exceeded\"}" ;;
+				*url_effective*) echo "https://github.com/o/r/releases/tag/v1.2.3" ;;
+				*expanded_assets/v1.2.3*)
+					echo "<a href=\"/o/r/releases/download/v1.2.3/tool-linux-arm64.tar.gz\">"
+					echo "<a href=\"/o/r/releases/download/v1.2.3/tool-linux-x86_64.tar.gz\">"
+					;;
+				*) return 22 ;;
+			esac
+		}'
+
+	_last_output=$(bash -c "
+		source '$PROJECT_ROOT/dist/common.sh'
+		$mock_curl
+		github_release_url o/r 'tool-linux-x86_64.*\\.tar\\.gz'
+	" 2>&1)
+	_last_exit=$?
+	assert_exit_code 0 "$_last_exit" "github_release_url: falls back to HTML on API error"
+	assert_output_contains "$_last_output" "https://github.com/o/r/releases/download/v1.2.3/tool-linux-x86_64.tar.gz" "github_release_url: HTML fallback picks matching asset"
+
+	_last_output=$(bash -c "
+		source '$PROJECT_ROOT/dist/common.sh'
+		$mock_curl
+		github_release_url o/r 'no-such-asset'
+	" 2>&1)
+	_last_exit=$?
+	assert_exit_code 1 "$_last_exit" "github_release_url: fails when no asset matches"
+	assert_output_contains "$_last_output" "Failed to find download URL" "github_release_url: shows error"
+}
+
+# ═════════════════════════════════════════════════════════════════════════════
 #  RUN ALL TESTS
 # ═════════════════════════════════════════════════════════════════════════════
 echo ""
@@ -729,6 +768,7 @@ test_neovim_error_handling
 test_copy_config_recursive
 test_tput_fallback
 test_code_quality
+test_github_release_fallback
 
 # ─── Summary ──────────────────────────────────────────────────────────────────
 echo ""
