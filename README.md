@@ -74,6 +74,9 @@ bash setup --docker
 # Build Ubuntu dev environment
 bash setup --docker --ubuntu
 
+# Build a specific Ubuntu version (22.04 / 24.04 / 26.04)
+bash setup --docker --ubuntu=22.04
+
 # Skip Neovim (faster)
 bash setup --docker --skip-neovim
 

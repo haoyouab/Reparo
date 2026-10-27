@@ -62,7 +62,7 @@ main() {
 				echo "  --china                   Use rsproxy.cn mirror for Rust (crates.io + rustup)"
 				echo "  --docker                  Build a Docker dev environment instead of local setup"
 				echo "  --fedora                  Docker: use Fedora base image (default)"
-				echo "  --ubuntu                  Docker: use Ubuntu base image"
+				echo "  --ubuntu[=VERSION]        Docker: use Ubuntu base image (22.04, 24.04, 26.04; default latest)"
 				echo "  --help, -h                Show this help message"
 				echo ""
 				echo "Examples:"
@@ -72,6 +72,7 @@ main() {
 				echo "  bash setup --offline=/path/to/packages   # Offline mode (local)"
 				echo "  bash setup --docker                     # Docker dev env (Fedora)"
 				echo "  bash setup --docker --ubuntu            # Docker dev env (Ubuntu)"
+				echo "  bash setup --docker --ubuntu=22.04      # Docker dev env (Ubuntu 22.04)"
 				echo "  bash setup --docker --skip-neovim       # Docker, skip Neovim"
 				echo "  bash setup --docker --offline=/path/to/packages  # Docker, offline mode"
 				echo "  bash setup --china                      # Use rsproxy.cn Rust mirror"
@@ -80,7 +81,7 @@ main() {
 			--docker)
 				DOCKER_MODE=true
 				;;
-			--fedora | --ubuntu)
+			--fedora | --ubuntu | --ubuntu=*)
 				DOCKER_ARGS+=("$_a")
 				;;
 			--github-token=*)

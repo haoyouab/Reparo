@@ -1,4 +1,6 @@
-FROM ubuntu:latest
+# Override with --build-arg UBUNTU_VERSION=22.04|24.04|26.04
+ARG UBUNTU_VERSION=latest
+FROM ubuntu:${UBUNTU_VERSION}
 
 ENV DEBIAN_FRONTEND=noninteractive
 

@@ -4,7 +4,8 @@
 #
 #  Usage:
 #    bash docker/build.sh                     # Build Fedora (default)
-#    bash docker/build.sh --ubuntu            # Build Ubuntu
+#    bash docker/build.sh --ubuntu            # Build Ubuntu (latest)
+#    bash docker/build.sh --ubuntu=22.04      # Build a specific Ubuntu version
 #    bash docker/build.sh --skip-neovim       # Skip Neovim (faster)
 #    bash docker/build.sh --ubuntu --skip-neovim
 #
@@ -32,6 +33,7 @@ log_error() { echo -e "  ${RED}❌ ${RST}$1"; }
 
 # ─── Parse arguments ────────────────────────────────────────────────────────
 DISTRO="fedora"
+BASE_TAG="latest"
 SKIP_NEOVIM=false
 CHINA_MIRRORS=false
 GITHUB_TOKEN="${GITHUB_TOKEN:-}"
@@ -41,6 +43,10 @@ for arg in "$@"; do
 	case "$arg" in
 		--fedora) DISTRO="fedora" ;;
 		--ubuntu) DISTRO="ubuntu" ;;
+		--ubuntu=*)
+			DISTRO="ubuntu"
+			BASE_TAG="${arg#--ubuntu=}"
+			;;
 		--skip-neovim) SKIP_NEOVIM=true ;;
 		--china) CHINA_MIRRORS=true ;;
 		--github-token=*)
@@ -55,7 +61,8 @@ for arg in "$@"; do
 			echo ""
 			echo "Options:"
 			echo "  --fedora              Use Fedora base image (default)"
-			echo "  --ubuntu              Use Ubuntu base image"
+			echo "  --ubuntu              Use Ubuntu base image (latest)"
+			echo "  --ubuntu=VERSION      Use a specific Ubuntu version (22.04, 24.04, 26.04)"
 			echo "  --skip-neovim         Skip Neovim setup (faster, no Rust/cargo)"
 			echo "  --china               Use rsproxy.cn mirror for Rust (crates.io + rustup)"
 			echo "  --offline=DIR         Use offline packages from DIR (skip GitHub downloads)"
@@ -64,6 +71,7 @@ for arg in "$@"; do
 			echo "Examples:"
 			echo "  bash setup --docker                  # Fedora, full setup"
 			echo "  bash setup --docker --ubuntu         # Ubuntu, full setup"
+			echo "  bash setup --docker --ubuntu=22.04   # Ubuntu 22.04, full setup"
 			echo "  bash setup --docker --skip-neovim    # Fedora, skip Neovim"
 			echo "  bash setup --docker --offline=/path/to/packages"
 			echo ""
@@ -99,6 +107,9 @@ BUILD_ARGS=(
 	--build-arg "USERNAME=${HOST_USERNAME}"
 	--build-arg "USER_UID=${HOST_UID}"
 )
+if [ "$DISTRO" = ubuntu ]; then
+	BUILD_ARGS+=(--build-arg "UBUNTU_VERSION=${BASE_TAG}")
+fi
 if [ "$SKIP_NEOVIM" = true ]; then
 	BUILD_ARGS+=(--build-arg "SKIP_NEOVIM=true")
 fi
@@ -143,7 +154,7 @@ echo -e "${CYAN}${BOLD}┏━━━━━━━━━━━━━━━━━━
 echo -e "${CYAN}${BOLD}┃${RST}  🐳  ${BOLD}Building Reparo Dev Environment${RST}"
 echo -e "${CYAN}${BOLD}┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${RST}"
 echo ""
-log_info "Distro:       ${BOLD}${DISTRO}${RST}"
+log_info "Distro:       ${BOLD}${DISTRO}:${BASE_TAG}${RST}"
 log_info "Image name:   ${BOLD}${IMAGE_NAME}${RST}"
 log_info "Username:     ${BOLD}${HOST_USERNAME}${RST} (uid=${HOST_UID})"
 log_info "Skip Neovim:  ${BOLD}${SKIP_NEOVIM}${RST}"
@@ -151,7 +162,8 @@ log_info "Skip Neovim:  ${BOLD}${SKIP_NEOVIM}${RST}"
 # ─── Load offline base image ────────────────────────────────────────────────
 # Bundled images avoid docker.io access (blocked in mainland China)
 echo ""
-if [ -f "$PROJECT_ROOT/$OFFLINE_IMAGE" ]; then
+# Bundled tarballs only provide the :latest tag
+if [ "$BASE_TAG" = latest ] && [ -f "$PROJECT_ROOT/$OFFLINE_IMAGE" ]; then
 	if docker image inspect "${DISTRO}:latest" &>/dev/null; then
 		log_info "Base image ${BOLD}${DISTRO}:latest${RST} already loaded, skipping import"
 	else
@@ -164,7 +176,7 @@ if [ -f "$PROJECT_ROOT/$OFFLINE_IMAGE" ]; then
 		fi
 	fi
 else
-	log_info "Offline image not found, Docker will pull ${BOLD}${DISTRO}:latest${RST} from registry"
+	log_info "Offline image not used, Docker will pull ${BOLD}${DISTRO}:${BASE_TAG}${RST} from registry"
 fi
 
 # ─── Build ──────────────────────────────────────────────────────────────────
