@@ -11,7 +11,8 @@ RUN apt-get update \
 
 # ─── Create test user with passwordless sudo ──────────────────────────────────
 RUN useradd -m testuser \
-	&& echo 'testuser ALL=(ALL) NOPASSWD:ALL' >>/etc/sudoers
+	&& echo 'testuser ALL=(ALL) NOPASSWD:ALL' >>/etc/sudoers \
+	&& echo 'Defaults env_keep += "http_proxy https_proxy no_proxy HTTP_PROXY HTTPS_PROXY NO_PROXY"' >>/etc/sudoers
 
 # ─── Copy repo into container ─────────────────────────────────────────────────
 COPY --chown=testuser:testuser . /home/testuser/Reparo

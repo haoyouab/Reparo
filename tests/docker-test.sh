@@ -51,6 +51,7 @@ for arg in "$@"; do
 			echo "Environment variables:"
 			echo "  SKIP_NEOVIM=true  Skip neovim setup (faster, skips cargo/rust)"
 			echo "  UBUNTU_VERSIONS   Space-separated Ubuntu versions (default: 22.04 24.04 26.04)"
+			echo "  GITHUB_TOKEN      Passed into containers to avoid GitHub API rate limits"
 			exit 0
 			;;
 		*)
@@ -83,6 +84,22 @@ DOCKER_ENV_ARGS=()
 if [ "${SKIP_NEOVIM:-false}" = "true" ]; then
 	DOCKER_ENV_ARGS+=(-e "SKIP_NEOVIM=true")
 fi
+if [ -n "${GITHUB_TOKEN:-}" ]; then
+	DOCKER_ENV_ARGS+=(-e "GITHUB_TOKEN")
+fi
+
+# ─── Forward host proxy settings (host network so 127.0.0.1 proxies work) ────
+BUILD_EXTRA_ARGS=()
+for _pv in http_proxy https_proxy no_proxy HTTP_PROXY HTTPS_PROXY NO_PROXY; do
+	if [ -n "${!_pv:-}" ]; then
+		BUILD_EXTRA_ARGS+=(--build-arg "$_pv")
+		DOCKER_ENV_ARGS+=(-e "$_pv")
+	fi
+done
+if [ ${#BUILD_EXTRA_ARGS[@]} -gt 0 ]; then
+	BUILD_EXTRA_ARGS+=(--network host)
+	DOCKER_ENV_ARGS+=(--network host)
+fi
 
 # ─── Test a single distro ────────────────────────────────────────────────────
 # Usage: run_distro_test <distro> [version]
@@ -92,7 +109,7 @@ run_distro_test() {
 	local dockerfile="tests/Dockerfile.${distro}"
 	local image_name="reparo-test-${distro}"
 	local label=$distro
-	local build_args=()
+	local build_args=("${BUILD_EXTRA_ARGS[@]+"${BUILD_EXTRA_ARGS[@]}"}")
 	if [ -n "$version" ]; then
 		image_name="${image_name}-${version}"
 		label="${distro} ${version}"

@@ -191,6 +191,8 @@ bash tests/docker-test.sh --ubuntu=24.04
 SKIP_NEOVIM=true bash tests/docker-test.sh
 ```
 
+Host proxy variables (`http_proxy`, `https_proxy`, `no_proxy`, ...) and `GITHUB_TOKEN` are forwarded into the test containers automatically.
+
 ### GitHub Actions CI
 
 - **Lint** — Runs shellcheck, shfmt, and unit tests on every push / PR

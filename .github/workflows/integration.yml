@@ -25,9 +25,12 @@ jobs:
         run: docker build -f tests/Dockerfile.fedora -t reparo-test-fedora .
 
       - name: Run Fedora setup + verification
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: >
           docker run --rm
           -e SKIP_NEOVIM=${{ github.event.inputs.skip_neovim || 'false' }}
+          -e GITHUB_TOKEN
           reparo-test-fedora
 
   integration-ubuntu:
@@ -48,7 +51,10 @@ jobs:
           -t reparo-test-ubuntu-${{ matrix.ubuntu }} .
 
       - name: Run Ubuntu ${{ matrix.ubuntu }} setup + verification
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: >
           docker run --rm
           -e SKIP_NEOVIM=${{ github.event.inputs.skip_neovim || 'false' }}
+          -e GITHUB_TOKEN
           reparo-test-ubuntu-${{ matrix.ubuntu }}
