@@ -274,6 +274,11 @@ tmux_conf_copy_to_os_clipboard=false
 # -- user customizations -------------------------------------------------------
 # this is the place to override or undo settings
 
+# wait longer for escape sequences: over SSH, terminal replies to tmux's device
+# attributes queries (e.g. Windows Terminal) can arrive split and leak into the
+# shell prompt as "61;4;6;7;...c0;10;1c" when escape-time is too short
+set -s escape-time 50
+
 # increase history size
 #set -g history-limit 10000
 
