@@ -5,7 +5,8 @@
 #  Usage:
 #    bash tests/docker-test.sh                 # Test both distros
 #    bash tests/docker-test.sh --fedora        # Test Fedora only
-#    bash tests/docker-test.sh --ubuntu        # Test Ubuntu only
+#    bash tests/docker-test.sh --ubuntu        # Test Ubuntu only (all versions)
+#    bash tests/docker-test.sh --ubuntu=22.04  # Test a single Ubuntu version
 #    SKIP_NEOVIM=true bash tests/docker-test.sh  # Skip slow neovim step
 #
 #  Requirements: Docker
@@ -28,21 +29,28 @@ RST=$(tput sgr0 2>/dev/null || true)
 # ─── Parse arguments ─────────────────────────────────────────────────────────
 RUN_FEDORA=false
 RUN_UBUNTU=false
+UBUNTU_VERSIONS="${UBUNTU_VERSIONS:-22.04 24.04 26.04}"
 
 for arg in "$@"; do
 	case "$arg" in
 		--fedora) RUN_FEDORA=true ;;
 		--ubuntu) RUN_UBUNTU=true ;;
+		--ubuntu=*)
+			RUN_UBUNTU=true
+			UBUNTU_VERSIONS="${arg#--ubuntu=}"
+			;;
 		--help | -h)
-			echo "Usage: bash tests/docker-test.sh [--fedora] [--ubuntu]"
+			echo "Usage: bash tests/docker-test.sh [--fedora] [--ubuntu[=VERSION]]"
 			echo ""
 			echo "Options:"
 			echo "  --fedora          Test Fedora only"
-			echo "  --ubuntu          Test Ubuntu only"
+			echo "  --ubuntu          Test Ubuntu only (all versions in UBUNTU_VERSIONS)"
+			echo "  --ubuntu=VERSION  Test a single Ubuntu version (e.g. 22.04)"
 			echo "  (no flags)        Test both distros"
 			echo ""
 			echo "Environment variables:"
 			echo "  SKIP_NEOVIM=true  Skip neovim setup (faster, skips cargo/rust)"
+			echo "  UBUNTU_VERSIONS   Space-separated Ubuntu versions (default: 22.04 24.04 26.04)"
 			exit 0
 			;;
 		*)
@@ -77,28 +85,38 @@ if [ "${SKIP_NEOVIM:-false}" = "true" ]; then
 fi
 
 # ─── Test a single distro ────────────────────────────────────────────────────
+# Usage: run_distro_test <distro> [version]
 run_distro_test() {
 	local distro=$1
+	local version=${2:-}
 	local dockerfile="tests/Dockerfile.${distro}"
 	local image_name="reparo-test-${distro}"
+	local label=$distro
+	local build_args=()
+	if [ -n "$version" ]; then
+		image_name="${image_name}-${version}"
+		label="${distro} ${version}"
+		build_args+=(--build-arg "UBUNTU_VERSION=${version}")
+	fi
 
 	TOTAL=$((TOTAL + 1))
 
 	echo ""
 	echo -e "${CYAN}${BOLD}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓${RST}"
-	echo -e "${CYAN}${BOLD}┃${RST}  🐳  Testing: ${BOLD}${distro}${RST}"
+	echo -e "${CYAN}${BOLD}┃${RST}  🐳  Testing: ${BOLD}${label}${RST}"
 	echo -e "${CYAN}${BOLD}┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${RST}"
 
 	# Build
 	echo ""
 	echo -e "  ${BOLD}🔨 Building image...${RST}"
-	if docker build -f "$PROJECT_ROOT/$dockerfile" -t "$image_name" "$PROJECT_ROOT" 2>&1 \
+	if docker build -f "$PROJECT_ROOT/$dockerfile" -t "$image_name" \
+		"${build_args[@]+"${build_args[@]}"}" "$PROJECT_ROOT" 2>&1 \
 		| sed 's/^/     /'; then
 		echo -e "  ${GREEN}✅ Image built: ${image_name}${RST}"
 	else
 		echo -e "  ${RED}❌ Failed to build image: ${image_name}${RST}"
 		FAIL=$((FAIL + 1))
-		RESULTS+=("${RED}❌${RST} ${distro}")
+		RESULTS+=("${RED}❌${RST} ${label}")
 		return
 	fi
 
@@ -109,14 +127,14 @@ run_distro_test() {
 	if docker run --rm "${DOCKER_ENV_ARGS[@]+"${DOCKER_ENV_ARGS[@]}"}" "$image_name" 2>&1 \
 		| sed 's/^/     /'; then
 		echo ""
-		echo -e "  ${GREEN}${BOLD}✅ ${distro} — PASSED${RST}"
+		echo -e "  ${GREEN}${BOLD}✅ ${label} — PASSED${RST}"
 		PASS=$((PASS + 1))
-		RESULTS+=("${GREEN}✅${RST} ${distro}")
+		RESULTS+=("${GREEN}✅${RST} ${label}")
 	else
 		echo ""
-		echo -e "  ${RED}${BOLD}❌ ${distro} — FAILED${RST}"
+		echo -e "  ${RED}${BOLD}❌ ${label} — FAILED${RST}"
 		FAIL=$((FAIL + 1))
-		RESULTS+=("${RED}❌${RST} ${distro}")
+		RESULTS+=("${RED}❌${RST} ${label}")
 	fi
 }
 
@@ -133,7 +151,11 @@ echo -e "${CYAN}${BOLD}╚══════════════════
 
 # ─── Run tests ────────────────────────────────────────────────────────────────
 [ "$RUN_FEDORA" = true ] && run_distro_test "fedora"
-[ "$RUN_UBUNTU" = true ] && run_distro_test "ubuntu"
+if [ "$RUN_UBUNTU" = true ]; then
+	for v in $UBUNTU_VERSIONS; do
+		run_distro_test "ubuntu" "$v"
+	done
+fi
 
 # ─── Summary ──────────────────────────────────────────────────────────────────
 echo ""

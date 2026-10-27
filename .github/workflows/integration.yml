@@ -31,16 +31,24 @@ jobs:
           reparo-test-fedora
 
   integration-ubuntu:
+    name: integration-ubuntu (${{ matrix.ubuntu }})
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        ubuntu: ["22.04", "24.04", "26.04"]
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build Ubuntu test image
-        run: docker build -f tests/Dockerfile.ubuntu -t reparo-test-ubuntu .
+      - name: Build Ubuntu ${{ matrix.ubuntu }} test image
+        run: >
+          docker build -f tests/Dockerfile.ubuntu
+          --build-arg UBUNTU_VERSION=${{ matrix.ubuntu }}
+          -t reparo-test-ubuntu-${{ matrix.ubuntu }} .
 
-      - name: Run Ubuntu setup + verification
+      - name: Run Ubuntu ${{ matrix.ubuntu }} setup + verification
         run: >
           docker run --rm
           -e SKIP_NEOVIM=${{ github.event.inputs.skip_neovim || 'false' }}
-          reparo-test-ubuntu
+          reparo-test-ubuntu-${{ matrix.ubuntu }}

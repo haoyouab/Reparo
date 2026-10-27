@@ -17,7 +17,7 @@ Automatically installs and configures the following tools:
 - Bash 4.0+
 - Git
 - sudo privileges (for installing packages)
-- Supported distributions: Fedora or Ubuntu
+- Supported distributions: Fedora or Ubuntu (22.04, 24.04, 26.04 LTS)
 
 ## 🚀 Quick Start
 
@@ -181,8 +181,11 @@ bash tests/docker-test.sh
 # Test Fedora only
 bash tests/docker-test.sh --fedora
 
-# Test Ubuntu only
+# Test Ubuntu only (22.04, 24.04 and 26.04)
 bash tests/docker-test.sh --ubuntu
+
+# Test a single Ubuntu version
+bash tests/docker-test.sh --ubuntu=24.04
 
 # Skip Neovim (faster)
 SKIP_NEOVIM=true bash tests/docker-test.sh
@@ -191,7 +194,7 @@ SKIP_NEOVIM=true bash tests/docker-test.sh
 ### GitHub Actions CI
 
 - **Lint** — Runs shellcheck, shfmt, and unit tests on every push / PR
-- **Integration** — Runs Docker integration tests on manual trigger or push to main
+- **Integration** — Runs Docker integration tests (Fedora + Ubuntu 22.04/24.04/26.04) on manual trigger or push to main
 
 ## 📄 License
 
