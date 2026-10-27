@@ -554,20 +554,19 @@ setup_conform_formatters() {
 			log_info "shfmt already installed, skipping"
 		else
 			# apt Go version is too old to build shfmt from source; use prebuilt binary
-			local shfmt_ver
-			shfmt_ver=$(curl -fsSL https://api.github.com/repos/mvdan/sh/releases/latest | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/') || {
-				log_error "Failed to fetch shfmt latest version."
-				return 1
-			}
 			local arch
 			arch=$(uname -m)
 			case "$arch" in
 				x86_64) arch="amd64" ;;
 				aarch64) arch="arm64" ;;
 			esac
+			local shfmt_url
+			shfmt_url=$(github_release_url "mvdan/sh" "^shfmt_v.*_linux_${arch}\$") || {
+				log_error "Failed to fetch shfmt latest release."
+				return 1
+			}
 			mkdir -p "$HOME/.local/bin"
-			curl -fsSL "https://github.com/mvdan/sh/releases/download/${shfmt_ver}/shfmt_${shfmt_ver}_linux_${arch}" \
-				-o "$HOME/.local/bin/shfmt" || {
+			curl -fsSL "$shfmt_url" -o "$HOME/.local/bin/shfmt" || {
 				log_error "Failed to download shfmt binary."
 				return 1
 			}
