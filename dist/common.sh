@@ -525,7 +525,10 @@ setup_conform_formatters() {
 			_install_node_apt
 		fi
 	fi
-	sudo npm install -g prettier || {
+	# User-local npm (e.g. nvm) is not on sudo's secure_path and must not be root-owned
+	local npm_sudo=sudo
+	[ -w "$(npm prefix -g 2>/dev/null)" ] && npm_sudo=""
+	$npm_sudo npm install -g prettier || {
 		log_error "Failed to install prettier."
 		return 1
 	}
